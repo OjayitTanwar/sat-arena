@@ -995,12 +995,27 @@ function popOAuthState(state) {
   return true;
 }
 
+// Current public tunnel base URL (parsed from the cloudflared log) so Google
+// OAuth keeps working even when the trycloudflare host rotates on restart.
+function tunnelBaseUrl() {
+  const fs = require('node:fs');
+  const LOG = process.env.TUNNEL_LOG || '/tmp/tunnel.log';
+  try {
+    const text = fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8') : '';
+    const urls = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g) || [];
+    return urls.length ? urls[urls.length - 1] : '';
+  } catch {
+    return '';
+  }
+}
+
 // Base URL used for the OAuth redirect_uri. An explicit APP_URL (env var or
-// admin config) is the robust option (works behind TLS-terminating proxies
-// like Heroku/Render/nginx, and isn't host-header dependent); the localhost
-// fallback covers local dev.
+// admin config) wins (works behind TLS-terminating proxies like
+// Heroku/Render/nginx); otherwise the live tunnel URL is used so rotating
+// trycloudflare hosts never break the Google handshake; the request-host
+// fallback covers plain local dev.
 async function oauthRedirectUri(req) {
-  const base = (await getConfig()).appUrl || `${req.protocol}://${req.get('host')}`;
+  const base = (await getConfig()).appUrl || tunnelBaseUrl() || `${req.protocol}://${req.get('host')}`;
   return `${base}/api/auth/google/callback`;
 }
 
