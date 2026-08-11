@@ -803,12 +803,11 @@ async function loadQuestion() {
   $('#q-adaptive').textContent = 'Adaptive · L' + g.adaptiveDiff;
   $('#fb-prog').textContent = '';
   $('#calc-btn').classList.toggle('hidden', g.current.section !== 'math');
-  // 50/50 hint button — only when the user owns hints and it's not a grid-in
-  const hintCount = (state.store && state.store.items && state.store.items.hint) || 0;
+  // 50/50 hint button — always available, never blocked (free for everyone)
   const hintBtn = $('#hint-btn');
   if (hintBtn) {
-    hintBtn.classList.toggle('hidden', g.current.type === 'grid' || hintCount <= 0);
-    hintBtn.textContent = hintCount > 0 ? `Hint (${hintCount})` : 'Hint';
+    hintBtn.classList.toggle('hidden', g.current.type === 'grid');
+    hintBtn.textContent = 'Hint';
   }
   const refillHide = $('#refill-btn');
   if (refillHide) refillHide.classList.add('hidden');
@@ -1000,22 +999,16 @@ async function chooseAnswer(idx, gridValue) {
   }
   for (const b of result.newBadges || []) {
     setTimeout(() => toast(`${b.name} unlocked`), 700);
-  }
-
-  if (g.lives <= 0) {
-    toast('Out of lives');
-    const btn2 = $('#next-btn');
-    btn2.textContent = 'See results';
-    btn2.onclick = finishGame;
+  }  if (g.lives <= 0) {
+    // Free auto-refill — practice is never blocked by hearts.
+    g.lives = g.mode.lives || 3;
+    renderLives();
     const refillBtn = $('#refill-btn');
-    if (refillBtn) {
-      const has = (state.store && state.store.items && state.store.items.hearts) || 0;
-      refillBtn.classList.remove('hidden');
-      refillBtn.textContent = has > 0 ? `Refill hearts (${has} left)` : 'Get hearts in the store';
-    }
-    return;
+    if (refillBtn) refillBtn.classList.add('hidden');
+    mascotReact('happy', 'Hearts refilled — keep going!');
+    Sound.correct();
+    toast('Hearts refilled — free');
   }
-
   const btn = $('#next-btn');
   btn.textContent = g.index >= g.mode.count ? 'See results' : 'Next question';
   btn.onclick = () => {
@@ -1277,11 +1270,10 @@ function renderTestQuestion() {
   $('#test-q-difficulty').classList.toggle('hard', q.difficulty === 3);
   $('#test-q-text').textContent = q.prompt;
   $('#test-calc-btn').classList.toggle('hidden', !isMath);
-  const testHintCount = (state.store && state.store.items && state.store.items.hint) || 0;
   const testHintBtn = $('#test-hint-btn');
   if (testHintBtn) {
-    testHintBtn.classList.toggle('hidden', q.type === 'grid' || testHintCount <= 0);
-    testHintBtn.textContent = testHintCount > 0 ? `Hint (${testHintCount})` : 'Hint';
+    testHintBtn.classList.toggle('hidden', q.type === 'grid');
+    testHintBtn.textContent = 'Hint';
   }
 
   if (q.type === 'grid') {
@@ -1472,7 +1464,7 @@ async function loadStore() {
   const data = await api('/api/store');
   state.store = {
     gems: data.gems, xpBoost: data.xpBoost, free: data.free,
-    paymentConfigured: data.paymentConfigured, items: {},
+    paymentConfigured: false, items: {},
   };
   for (const c of data.catalog) state.store.items[c.id] = c.owned;
   renderStore(data);
@@ -1484,17 +1476,9 @@ function renderStore(data) {
 
   const banner = $('#store-banner');
   if (banner) {
-    if (data.free) {
-      banner.classList.remove('hidden');
-      banner.innerHTML = `${ICONS.gem}<span>Admin mode — every item and gem pack is free for you.</span>`;
-      banner.classList.add('admin');
-    } else if (!data.paymentConfigured) {
-      banner.classList.remove('hidden');
-      banner.innerHTML = `${ICONS.gem}<span>Payments aren't configured yet — earn gems by playing, or ask the admin for a grant.</span>`;
-      banner.classList.remove('admin');
-    } else {
-      banner.classList.add('hidden');
-    }
+    banner.classList.remove('hidden');
+    banner.innerHTML = `${ICONS.gem}<span>Everything is free — no payments, no premium. Gems are just for fun.</span>`;
+    banner.classList.remove('admin');
   }
 
   const cat = $('#store-catalog');
@@ -1507,21 +1491,15 @@ function renderStore(data) {
           <span class="store-desc muted small">${c.desc}</span>
           ${c.owned > 0 ? `<span class="store-owned-tag">Owned ×${c.owned}</span>` : ''}
         </div>
-        <button class="btn store-buy ${data.free ? 'free' : ''}" data-item="${c.id}">${data.free ? 'Free' : c.price + ' ' + ICONS.gem}</button>
+        <button class="btn store-buy free" data-item="${c.id}">Get</button>
       </div>`).join('');
     $$('#store-catalog [data-item]').forEach((b) => b.addEventListener('click', () => buyItem(b.dataset.item)));
   }
 
   const packs = $('#store-packs');
-  if (packs) {
-    packs.innerHTML = data.packs.map((p, i) => `
-      <div class="pack-card" style="animation-delay:${i * 70}ms">
-        <span class="pack-ico">${ICONS.gem}</span>
-        <b>${p.label}</b>
-        <button class="btn btn-primary" data-pack="${p.id}">${data.free ? 'Free' : '$' + (p.priceCents / 100).toFixed(2)}</button>
-      </div>`).join('');
-    $$('#store-packs [data-pack]').forEach((b) => b.addEventListener('click', () => checkoutPack(b.dataset.pack)));
-  }
+  if (packs) packs.innerHTML = '';
+  const packsTitle = $('#packs-title');
+  if (packsTitle) packsTitle.classList.add('hidden');
 
   const ownedEl = $('#store-owned');
   if (ownedEl) {
@@ -1589,22 +1567,10 @@ async function buyItem(itemId) {
   }
 }
 
-async function checkoutPack(packId) {
-  try {
-    const r = await api('/api/store/checkout', { method: 'POST', body: { packId } });
-    if (r.free) {
-      state.store.gems = r.gems;
-      setCounter($('#top-gems'), r.gems.toLocaleString());
-      toast('Gems added (admin free)');
-      Sound.finish();
-      confetti(60);
-      loadStore().catch(() => {});
-    } else if (r.url) {
-      location.href = r.url; // Stripe Checkout
-    }
-  } catch (err) {
-    toast(err.message);
-  }
+async function checkoutPack() {
+  // Real-money packs are gone — everything is free. Kept as a no-op so any
+  // stale pack buttons can't error.
+  toast('Gem packs are off — everything is free');
 }
 
 // 50/50: server removes two wrong answers (never leaks the correct index)
@@ -1613,9 +1579,6 @@ async function useHint(mode) {
   if (!g || !g.current || g.current.type === 'grid' || g.locked) return;
   try {
     const r = await api('/api/store/use', { method: 'POST', body: { itemId: 'hint', questionId: g.current.id } });
-    if (state.store && state.store.items) {
-      state.store.items.hint = Math.max(0, (state.store.items.hint || 0) - 1);
-    }
     const wrap = $(mode === 'test' ? '#test-q-choices' : '#q-choices');
     const letters = ['A', 'B', 'C', 'D'];
     wrap.innerHTML = r.choices
@@ -1630,6 +1593,7 @@ async function useHint(mode) {
     if (btn) btn.classList.add('hidden');
     Sound.click();
     toast('Two wrong answers eliminated');
+    if (mode !== 'test') loadStore().catch(() => {}); // keep the free counters in sync
   } catch (err) {
     toast(err.message);
   }
@@ -1657,9 +1621,6 @@ async function refillHearts() {
     const r = await api('/api/store/use', { method: 'POST', body: { itemId: 'hearts' } });
     g.lives = r.lives;
     renderLives();
-    if (state.store && state.store.items) {
-      state.store.items.hearts = Math.max(0, (state.store.items.hearts || 0) - 1);
-    }
     const refillBtn = $('#refill-btn');
     if (refillBtn) refillBtn.classList.add('hidden');
     mascotReact('happy', 'Hearts restored — keep going');
@@ -2225,11 +2186,7 @@ async function init() {
   $('#test-hint-btn').addEventListener('click', () => useHint('test'));
   const refillBtn = $('#refill-btn');
   if (refillBtn) {
-    refillBtn.addEventListener('click', () => {
-      const has = (state.store && state.store.items && state.store.items.hearts) || 0;
-      if (has > 0) refillHearts();
-      else navigate('store');
-    });
+    refillBtn.addEventListener('click', () => refillHearts());
   }
 
   // admin economy
