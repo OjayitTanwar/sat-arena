@@ -255,6 +255,21 @@ app.get('/api/me', async (req, res) => {
   res.json({ user: user ? publicUser(user) : null });
 });
 
+// Current public tunnel URL (used by the local watchdog so you can always find
+// the live link after a cloudflared restart rotates the trycloudflare host).
+// Works only when the tunnel log path is available (local dev via launchd).
+app.get('/api/live-url', (_req, res) => {
+  const fs = require('node:fs');
+  const LOG = process.env.TUNNEL_LOG || '/tmp/tunnel.log';
+  try {
+    const text = fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8') : '';
+    const urls = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g) || [];
+    res.json({ url: urls.length ? urls[urls.length - 1] : null });
+  } catch {
+    res.json({ url: null });
+  }
+});
+
 // ── Question routes ────────────────────────────────────────────────────────
 
 // Generates questions ON THE SPOT — every request returns fresh, unique questions.
