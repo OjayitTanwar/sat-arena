@@ -2680,6 +2680,29 @@ async function init() {
     $('#cfg-email-smtp-group').classList.toggle('hidden', !smtp);
     $('#cfg-email-resend-group').classList.toggle('hidden', smtp);
   }));
+
+  // send a test email through the current provider (SMTP or Resend)
+  $('#cfg-test-email-btn').addEventListener('click', async () => {
+    const to = $('#cfg-test-email').value.trim();
+    const resultEl = $('#cfg-test-email-result');
+    const btn = $('#cfg-test-email-btn');
+    if (!to) { resultEl.textContent = 'Enter an email address first.'; resultEl.style.color = 'var(--danger)'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+      const r = await api('/api/admin/test-email', { method: 'POST', body: { to } });
+      resultEl.textContent = 'Email sent via ' + (r.via || 'provider') + ' — check the inbox (and spam folder).';
+      resultEl.style.color = 'var(--success)';
+      Sound.correct();
+    } catch (err) {
+      resultEl.textContent = err.message;
+      resultEl.style.color = 'var(--danger)';
+      Sound.wrong();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send test email';
+    }
+  });
   $('#cfg-stripe-clear-btn').addEventListener('click', () => {
     if (confirm('Clear the saved Stripe key? Payments will be disabled until a key is added.')) clearAdminConfig(['stripe_secret_key']);
   });

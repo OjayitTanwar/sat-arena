@@ -101,7 +101,7 @@ async function sendEmail(to, subject, html) {
       return { sent: true, dev: false, via: 'smtp' };
     } catch (e) {
       console.error('SMTP send failed:', e && e.message ? e.message : e);
-      return { sent: false, dev: false, via: 'smtp' };
+      return { sent: false, dev: false, via: 'smtp', error: String(e && e.message ? e.message : e).slice(0, 300) };
     }
   }
   if (!c.resendKey) return { sent: false, dev: true };
@@ -112,13 +112,14 @@ async function sendEmail(to, subject, html) {
       body: JSON.stringify({ from: c.emailFrom, to, subject, html }),
     });
     if (!res.ok) {
-      console.error('Resend error:', res.status, (await res.text()).slice(0, 200));
-      return { sent: false, dev: false };
+      const errText = (await res.text()).slice(0, 300);
+      console.error('Resend error:', res.status, errText);
+      return { sent: false, dev: false, via: 'resend', error: errText };
     }
     return { sent: true, dev: false, via: 'resend' };
   } catch (e) {
     console.error('Email send failed:', e && e.message ? e.message : e);
-    return { sent: false, dev: false, via: 'resend' };
+    return { sent: false, dev: false, via: 'resend', error: String(e && e.message ? e.message : e).slice(0, 300) };
   }
 }
 
@@ -1632,6 +1633,29 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       ads: c.adsEnabled && Boolean(c.adsNetwork === 'adsense' ? c.adsenseClient : c.adsCode),
       payments: Boolean(c.stripeKey),
     },
+  });
+});
+
+// Send a test email through the current provider (SMTP or Resend) so the
+// admin can verify settings from the panel without waiting for a signup.
+app.post('/api/admin/test-email', adminRequired, async (req, res) => {
+  const { to } = req.body || {};
+  if (!validateEmail(String(to || ''))) return res.status(400).json({ error: 'Enter a valid recipient email.' });
+  const result = await sendEmail(
+    String(to),
+    'SAT Arena — test email',
+    `<div style="font-family:system-ui,sans-serif"><h2 style="color:#16a34a">SAT Arena</h2><p>If you can read this, your email settings are working.</p><p style="color:#6b7280;font-size:13px">Sent ${new Date().toISOString()}</p></div>`
+  );
+  if (result.sent) {
+    await db.prepare('INSERT INTO admin_log (admin_id, action, detail) VALUES (?, ?, ?)')
+      .run(req.user.id, 'test_email', `sent via ${result.via} to ${to}`);
+    return res.json({ ok: true, via: result.via });
+  }
+  return res.status(502).json({
+    error: result.dev
+      ? 'No email provider configured — you are in dev mode (codes show on screen).'
+      : (result.error || 'Email send failed — check your provider settings.'),
+    via: result.via || null,
   });
 });
 

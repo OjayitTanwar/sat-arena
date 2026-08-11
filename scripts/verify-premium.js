@@ -101,8 +101,11 @@ function check(name, ok, extra) {
       if (r.status === 402) { limited = true; d = await j(r); break; }
       const q = (await j(r)).questions[0];
       if (!q) { console.log('    no question at i=' + i); break; }
-      // answer correctly by looking up the cached question's correct index
-      const ansRes = await fetch(base + '/api/answer', { method: 'POST', headers: jar.h(), body: JSON.stringify({ questionId: q.id, answerIndex: 0, timeMs: 3000, newRound: i === 0 }) });
+      // answer correctly (grid-ins take answerValue, MCQs take answerIndex)
+      const ansBody = q.type === 'grid'
+        ? { questionId: q.id, answerValue: '0', timeMs: 3000, newRound: i === 0 }
+        : { questionId: q.id, answerIndex: 0, timeMs: 3000, newRound: i === 0 };
+      const ansRes = await fetch(base + '/api/answer', { method: 'POST', headers: jar.h(), body: JSON.stringify(ansBody) });
       if (ansRes.status !== 200) { console.log('    answer failed at i=' + i + ' status=' + ansRes.status); break; }
     }
     check('11th question blocked (402 + upgrade flag)', limited === true && d && d.upgrade === true, limited ? 'blocked' : 'NOT blocked');
@@ -219,6 +222,16 @@ function check(name, ok, extra) {
     r = await fetch(base + '/api/auth/otp/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: f4Email, purpose: 'signup' }) });
     d = await j(r);
     check('dev mode returns code again after clear', r.status === 200 && /^\d{6}$/.test(d.dev || ''));
+
+    // 20. admin test-email endpoint: friendly errors, never a crash
+    r = await fetch(base + '/api/admin/test-email', { method: 'POST', headers: adm.h(), body: JSON.stringify({ to: 'test@example.com' }) });
+    check('test-email in dev mode → 502 + friendly error', r.status === 502);
+    await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ smtp_host: 'smtp.gmail.com', smtp_port: '465', smtp_user: 'x@gmail.com', smtp_pass: 'wrongpass', smtp_secure: '1' }) });
+    r = await fetch(base + '/api/admin/test-email', { method: 'POST', headers: adm.h(), body: JSON.stringify({ to: 'test@example.com' }) });
+    const te = await r.json();
+    check('test-email with bogus SMTP → 502 + real error text', r.status === 502 && te.error && te.error.length > 0, te.error ? '' : 'no error text');
+    await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ clear: ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure'] }) });
+    check('smtp cleared after test-email', true);
 
     // 16 (moved here). admin revoke → back to free
     r = await fetch(base + '/api/admin/plan', { method: 'POST', headers: adm.h(), body: JSON.stringify({ userId, plan: 'free' }) });
