@@ -1600,7 +1600,7 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
   const actions = [...Object.keys(entries), ...clears.map((k) => k + ':clear')];
   await db.prepare('INSERT INTO admin_log (admin_id, action, detail) VALUES (?, ?, ?)')
     .run(req.user.id, 'updated_config', actions.join(', '));
-  const c = getConfig();
+  const c = await getConfig();
   res.json({
     ok: true,
     config: {
