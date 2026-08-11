@@ -183,6 +183,9 @@ function showView(view) {
   if (view === 'test' && authed) resetTestMenu();
   if (view === 'store' && authed) loadStore().catch(() => toast('Could not load the store.'));
   if (view === 'premium' && authed) loadPremiumPage().catch(() => toast('Could not load premium info.'));
+  // refresh the ad slot for the practice/test screens (already-visible ads
+  // render more reliably than ones injected while the container was hidden)
+  if (authed && (view === 'practice' || view === 'test') && state.ads) renderAds(state.ads);
   if (view === 'admin' && authed) loadAdminPanel().catch(() => toast('Could not load admin panel.'));
 }
 
@@ -1030,9 +1033,12 @@ async function renderDashboardData(data) {
   if (adminNav2) adminNav2.classList.toggle('hidden', !u.is_admin);
 
   $('#dash-tutor-status').textContent = data.tutor.provider + '.';
-  // premium plan + ad slots (free tier)
+  // premium plan + ad slots (free tier) — cache ads so they can be re-injected
+  // when the user switches to the practice/test screens (ads render better in
+  // a visible container)
   applyPlan(data.plan);
-  renderAds(data.ads);
+  state.ads = data.ads;
+  renderAds(state.ads);
   populateDrillPicker().catch(() => {});
   renderQuests();
 }
