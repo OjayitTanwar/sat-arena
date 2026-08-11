@@ -1,0 +1,22 @@
+name: Keep Render warm
+
+# Render's free tier spins the app down after 15 minutes without traffic,
+# which makes the next visitor wait 30–60s for a cold boot. Pinging every
+# 5 minutes keeps the instance awake so the site always responds instantly.
+# Runs on GitHub's free tier (public repo = unlimited minutes).
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  keep-warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping app (wakes Render instance)
+        run: |
+          curl -s -o /dev/null -w "homepage: %{http_code} in %{time_total}s\n" -m 90 https://sat-arena.onrender.com/ || true
+          curl -s -o /dev/null -w "api:      %{http_code} in %{time_total}s\n" -m 90 https://sat-arena.onrender.com/api/live-url || true
+        # `|| true` — a failed ping must never page anyone; worst case the next
+        # ping wakes the app and the site is back.
