@@ -93,6 +93,10 @@ function check(name, ok, extra) {
     r = await fetch(base + '/api/subscription', { headers: jar.h() });
     d = await j(r);
     check('subscription endpoint reports free + price', r.status === 200 && d.premium === false && d.priceCents > 0);
+    const planIds = ((d.plans || []).map((p) => p.id).sort().join(','));
+    check('subscription returns monthly/annual/lifetime catalog',
+      planIds === 'annual,lifetime,monthly' && d.plans.every((p) => p.priceCents > 0 && p.label && p.per),
+      'plans=' + planIds);
 
     // 9. free-tier gates
     r = await fetch(base + '/api/topics', { headers: jar.h() });

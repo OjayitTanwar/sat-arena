@@ -16,6 +16,8 @@ const state = {
   calc: null,          // Desmos calculator instance
   soundOn: localStorage.getItem('sat_sound') !== 'off',
   theme: localStorage.getItem('sat_theme') || 'light',
+  selectedPlan: 'monthly', // premium plan selector (monthly / annual / lifetime)
+  plans: null,             // live plan catalog from /api/subscription
 };
 
 // admin-panel flags (declared with state so their scope is obvious)
@@ -131,7 +133,7 @@ async function api(path, options = {}) {
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────
-const VIEWS = ['dashboard', 'practice', 'test', 'test-results', 'leaderboard', 'tutor', 'store', 'premium', 'results', 'auth', 'admin'];
+const VIEWS = ['landing', 'dashboard', 'practice', 'test', 'test-results', 'leaderboard', 'tutor', 'store', 'premium', 'results', 'auth', 'admin'];
 
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, '');
@@ -145,6 +147,18 @@ function navigate(view) {
 }
 
 function showView(view) {
+  const authed = state.user != null;
+  // Unknown view (stale anchor hash like #features, a typo, a bookmarked
+  // deep-link) → fall back to a sensible screen instead of a blank page.
+  if (!VIEWS.includes(view)) view = authed ? 'dashboard' : 'landing';
+  // Logged-out users only ever see the landing or auth screens (an empty
+  // hash parses as 'dashboard' — e.g. pressing Back from #/auth); logged-in
+  // users never see the marketing/auth pages.
+  if (!authed) {
+    if (view !== 'landing' && view !== 'auth') view = 'landing';
+  } else if (view === 'landing' || view === 'auth') {
+    view = 'dashboard';
+  }
   // stop any live timers when the user navigates away mid-module/mid-round so
   // they can't fire into hidden views (e.g. a full-test countdown advancing the
   // test while the user is on the dashboard)
@@ -164,9 +178,12 @@ function showView(view) {
     }
   }
   state.view = view;
-  const authed = state.user != null;
+  const landing = $('#view-landing');
+  if (landing) landing.classList.toggle('hidden', authed || view !== 'landing');
   $('#view-auth').classList.toggle('hidden', authed || view !== 'auth');
   $('#app').classList.toggle('hidden', !authed);
+  const fb = $('#feedback-btn');
+  if (fb) fb.classList.toggle('hidden', !authed);
 
   if (authed) {
     $$('.app-view').forEach((v) => v.classList.add('hidden'));
@@ -193,6 +210,15 @@ window.addEventListener('hashchange', () => {
   const { view } = parseHash();
   if (view !== state.view) showView(view);
 });
+
+// Landing page CTAs jump to the auth screen with the right tab active.
+function openAuth(tab) {
+  const cur = parseHash().view;
+  if (cur !== 'auth') navigate('auth');
+  showView('auth');
+  const btn = document.querySelector('.auth-tab[data-tab="' + (tab === 'signup' ? 'signup' : 'login') + '"]');
+  if (btn) btn.click();
+}
 
 // ── Toast / confetti / level-up ────────────────────────────────────────────
 let toastTimer = null;
@@ -440,7 +466,7 @@ async function subscribePremium(btnOverride, errorElId) {
   if (label) label.classList.add('hidden');
   if (spinner) spinner.classList.remove('hidden');
   try {
-    const r = await api('/api/subscribe', { method: 'POST' });
+    const r = await api('/api/subscribe', { method: 'POST', body: { plan: state.selectedPlan || 'monthly' } });
     if (r.url) { location.href = r.url; return; } // Stripe checkout
     if (r.already) {
       if (errorEl) errorEl.textContent = '';
@@ -458,13 +484,40 @@ async function subscribePremium(btnOverride, errorElId) {
   }
 }
 
+// Highlight the selected plan card + keep the price note in sync. Called on
+// every card click and on page load so the selection survives revisits (the
+// highlighted card and the plan sent to /api/subscribe always agree).
+function syncPlanSelection() {
+  const sel = state.selectedPlan || 'monthly';
+  $$('.plan-card.selectable').forEach((c) => c.classList.toggle('selected', c.dataset.plan === sel));
+  const p = (state.plans || []).find((x) => x.id === sel);
+  const note = $('#premium-selected-note');
+  if (!note) return;
+  if (sel === 'lifetime') {
+    const cents = p ? p.priceCents : 14900;
+    note.textContent = 'Lifetime — $' + (cents / 100).toFixed(2) + ' one-time, no renewals.';
+  } else {
+    const cents = p ? p.priceCents : (sel === 'annual' ? 7999 : 999);
+    const per = sel === 'annual' ? '/year' : '/month';
+    note.textContent = sel.charAt(0).toUpperCase() + sel.slice(1) + ' — $' + (cents / 100).toFixed(2) + per + ', cancel anytime.';
+  }
+}
+
 // ── Premium info page ──────────────────────────────────────────────────────
 async function loadPremiumPage() {
   const s = await api('/api/subscription');
   state.plan = { ...state.plan, premium: s.premium, priceCents: s.priceCents, dailyUsed: s.dailyUsed, tutorUsed: s.tutorUsed };
-  const price = '$' + (s.priceCents / 100).toFixed(2);
-  const priceEl = $('#premium-page-price');
-  if (priceEl) priceEl.innerHTML = price + '<span>/month</span>';
+  if (Array.isArray(s.plans)) state.plans = s.plans;
+  // Price the selectable plan cards from the live catalog
+  (s.plans || []).forEach((p) => {
+    const el = document.querySelector('[data-price-for="' + p.id + '"]');
+    if (el) {
+      const money = '$' + (p.priceCents / 100).toFixed(2);
+      const per = p.per === 'year' ? '/year' : p.per === 'one-time' ? 'one-time' : '/month';
+      el.innerHTML = money + '<span>' + per + '</span>';
+    }
+  });
+  syncPlanSelection(); // restore the highlighted card + price note on revisit
   const pill = $('#premium-status-pill');
   const statusLine = $('#premium-status-line');
   const subBtn = $('#premium-subscribe-btn');
@@ -2296,6 +2349,8 @@ async function loadAdminConfig() {
   $('#cfg-adsense-client').value = '';
   $('#cfg-stripe-key').value = '';
   $('#cfg-premium-price').value = config.premium_price_cents || '999';
+  $('#cfg-premium-annual').value = config.premium_annual_cents || '7999';
+  $('#cfg-premium-lifetime').value = config.premium_lifetime_cents || '14900';
   // ads network radio
   const net = config.ads_network === 'adsense' ? 'adsense' : 'custom';
   $$('input[name="ads-network"]').forEach((r) => { r.checked = r.value === net; });
@@ -2345,6 +2400,8 @@ async function saveAdminConfig() {
       ['adsense_client', $('#cfg-adsense-client')],
       ['stripe_secret_key', $('#cfg-stripe-key')],
       ['premium_price_cents', $('#cfg-premium-price')],
+      ['premium_annual_cents', $('#cfg-premium-annual')],
+      ['premium_lifetime_cents', $('#cfg-premium-lifetime')],
     ];
     if ($('#cfg-ads-enabled').checked) body.ads_enabled = '1';
     else clears.push('ads_enabled'); // blank = keep, so an explicit clear turns ads off
@@ -2579,6 +2636,24 @@ async function init() {
     el.addEventListener('click', () => { Sound.click(); navigate(el.dataset.view); });
   });
 
+  // landing page CTAs → open auth with the right tab (login or signup)
+  $$('[data-landing-auth]').forEach((b) => b.addEventListener('click', () => { Sound.click(); openAuth(b.dataset.landingAuth); }));
+
+  // landing page section links (#features / #pricing / #faq) — smooth-scroll
+  // instead of changing the hash, which would confuse the #/view router.
+  $$('.landing-nav-links a').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+
+  // premium page plan selector (monthly / annual / lifetime)
+  $$('.plan-card.selectable').forEach((card) => card.addEventListener('click', () => {
+    state.selectedPlan = card.dataset.plan;
+    syncPlanSelection();
+    Sound.click();
+  }));
+
   // mode cards
   $$('.mode-card').forEach((card) => card.addEventListener('click', () => { Sound.click(); startGame(card.dataset.mode); }));
 
@@ -2734,7 +2809,8 @@ async function init() {
   } catch {}
 
   const { view } = parseHash();
-  const target = state.user ? (view === 'auth' ? 'dashboard' : view) : 'auth';
+  // Logged out → marketing landing page (or auth if someone deep-links to #/auth)
+  const target = state.user ? (view === 'auth' || view === 'landing' ? 'dashboard' : view) : (view === 'auth' ? 'auth' : 'landing');
   showView(target);
 }
 

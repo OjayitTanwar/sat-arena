@@ -3,14 +3,162 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SAT Arena — Gamified SAT Prep</title>
+  <title>SAT Arena — Free Gamified SAT Prep with Adaptive Practice Tests</title>
+  <meta name="description" content="Train like it's game day. Fresh SAT-style questions, full-length digital-SAT practice tests with a built-in Desmos calculator, adaptive difficulty, streaks, and a free AI tutor. Start free — no card required." />
+  <meta name="theme-color" content="#16a34a" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SAT Arena" />
+  <meta property="og:title" content="SAT Arena — Free Gamified SAT Prep" />
+  <meta property="og:description" content="Fresh SAT-style questions, full-length digital-SAT practice tests, adaptive difficulty and a free AI tutor. Train like it's game day." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="SAT Arena — Free Gamified SAT Prep" />
+  <meta name="twitter:description" content="Fresh SAT-style questions, full-length digital-SAT practice tests, adaptive difficulty and a free AI tutor." />
+  <!-- Analytics: paste your free snippet here (Cloudflare Web Analytics, Plausible, GA4…) when you have one -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2316a34a'/%3E%3Cpath d='M16 8l9 4.5-9 4.5-9-4.5L16 8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 14.5V19c0 1.7 3.1 3 7 3s7-1.3 7-3v-4.5' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
+  <!-- ============ LANDING PAGE (logged-out home) ============ -->
+  <section id="view-landing" class="view">
+    <header class="landing-nav">
+      <div class="landing-brand">
+        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <span class="landing-brand-name">SAT <em>Arena</em></span>
+      </div>
+      <nav class="landing-nav-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="landing-nav-cta">
+        <button class="btn btn-ghost" data-landing-auth="login">Log in</button>
+        <button class="btn btn-primary" data-landing-auth="signup">Start free</button>
+      </div>
+    </header>
+
+    <section class="landing-hero">
+      <p class="landing-eyebrow">Free SAT prep · No card required</p>
+      <h1>Train like it's <span class="accent">game day</span>.</h1>
+      <p class="landing-sub">Fresh SAT-style questions generated live, full-length digital-SAT practice tests with the official Desmos calculator, and adaptive difficulty that tunes to you — plus streaks, badges and a free AI tutor in your corner.</p>
+      <div class="landing-cta-row">
+        <button class="btn btn-primary btn-lg" data-landing-auth="signup">Start practicing free</button>
+        <button class="btn btn-ghost btn-lg" data-landing-auth="login">I have an account</button>
+      </div>
+      <div class="landing-stats">
+        <div><b>108</b><span>questions per full test</span></div>
+        <div><b>61+</b><span>math topics</span></div>
+        <div><b>2h15m</b><span>real digital-SAT timing</span></div>
+        <div><b>400–1600</b><span>scaled scores</span></div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="features">
+      <h2 class="landing-h2">Everything you need to raise your score</h2>
+      <p class="landing-lead">SAT Arena is a full training gym for the digital SAT — built by one developer who wanted free prep that actually feels like the real test.</p>
+      <div class="landing-features">
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><h3>Fresh questions every time</h3><p>Questions are generated live from 61+ math templates and a deep reading bank — no stale question banks, no repeating the same problem.</p></div>
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><h3>Full digital-SAT tests</h3><p>4 modules, 108 questions, real per-module timing, adaptive Module 2 — and a scaled 400–1600 score with question-by-question review.</p></div>
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5z"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg></span><h3>Desmos built in</h3><p>The same graphing calculator the real SAT uses, embedded in every Math module — exactly like test day.</p></div>
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></span><h3>Adaptive difficulty</h3><p>A live skill rating re-tunes every question to your level — and your per-topic proficiency shows exactly where to grind.</p></div>
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><h3>Free AI tutor</h3><p>SAT Sage explains strategies, grammar rules and step-by-step math — with zero API keys needed. Upgradeable to a real LLM with a free Gemini key.</p></div>
+        <div class="card landing-feature"><span class="landing-feat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3 1.07-1.06 2.78-3.5 2.78-5.5 0-1.38-.5-2-1-3C13 2 14 4 14 6.5 14 8.5 12.5 10 12 12c.5-1 1-2 1-3.5 1.07 1.06 2 2.5 2 4.5 0 2.76-2.24 5-5 5s-5-2.24-5-5c0-1.5.5-2.5 1-3 .5 1 1 2 1 3 0 .75-.25 1.5-.5 2z"/></svg></span><h3>Streaks, XP, badges</h3><p>A Duolingo-style game layer keeps you consistent — daily quests, an owl mascot, hearts, combos, and a global leaderboard.</p></div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-how">
+      <h2 class="landing-h2">How it works</h2>
+      <div class="landing-steps">
+        <div class="landing-step"><span class="landing-step-num">1</span><h3>Create a free account</h3><p>Email signup with a one-time code — no card, no spam.</p></div>
+        <div class="landing-step"><span class="landing-step-num">2</span><h3>Answer 10 questions a day</h3><p>Adaptive practice that finds your weak spots and fixes them.</p></div>
+        <div class="landing-step"><span class="landing-step-num">3</span><h3>Take a full test when ready</h3><p>2h15m digital-SAT simulation with a real scaled score — then review every miss.</p></div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="pricing">
+      <h2 class="landing-h2">Simple pricing</h2>
+      <p class="landing-lead">Start free forever. Upgrade only when you want unlimited practice.</p>
+      <div class="plan-grid landing-plans">
+        <div class="plan-card free">
+          <h3>Free</h3>
+          <p class="plan-price">$0</p>
+          <ul>
+            <li><span class="plan-check muted">✓</span> 10 practice questions a day</li>
+            <li><span class="plan-check muted">✓</span> 3 AI tutor messages a day</li>
+            <li><span class="plan-check muted">✓</span> Streaks, XP and leaderboard</li>
+            <li><span class="plan-check muted">✓</span> Ad-supported</li>
+          </ul>
+          <button class="btn btn-ghost" data-landing-auth="signup">Start free</button>
+        </div>
+        <div class="plan-card premium">
+          <h3>Premium <span class="plan-badge">Most popular</span></h3>
+          <p class="plan-price">$9.99<span>/month</span></p>
+          <ul>
+            <li><span class="plan-check">✓</span> Unlimited practice, every topic</li>
+            <li><span class="plan-check">✓</span> Full-length practice tests with Desmos</li>
+            <li><span class="plan-check">✓</span> Unlimited AI tutor</li>
+            <li><span class="plan-check">✓</span> Topic analytics + no ads</li>
+          </ul>
+          <button class="btn btn-primary" data-landing-auth="signup">Get Premium</button>
+        </div>
+        <div class="plan-card premium">
+          <h3>Annual <span class="plan-badge best">2 months free</span></h3>
+          <p class="plan-price" id="landing-annual-price">$79.99<span>/year</span></p>
+          <ul>
+            <li><span class="plan-check">✓</span> Everything in Premium</li>
+            <li><span class="plan-check">✓</span> Billed once a year — save 33%</li>
+            <li><span class="plan-check">✓</span> Unlimited practice tests</li>
+            <li><span class="plan-check">✓</span> Ad-free, priority support</li>
+          </ul>
+          <button class="btn btn-ghost" data-landing-auth="signup">Save 33%</button>
+        </div>
+        <div class="plan-card premium lifetime">
+          <h3>Lifetime <span class="plan-badge best">Best value</span></h3>
+          <p class="plan-price" id="landing-lifetime-price">$149<span>one-time</span></p>
+          <ul>
+            <li><span class="plan-check">✓</span> Everything in Premium, forever</li>
+            <li><span class="plan-check">✓</span> One payment, no renewals</li>
+            <li><span class="plan-check">✓</span> Lifetime access to new features</li>
+            <li><span class="plan-check">✓</span> Supports independent development</li>
+          </ul>
+          <button class="btn btn-primary" data-landing-auth="signup">Go Lifetime</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="faq">
+      <h2 class="landing-h2">Frequently asked questions</h2>
+      <div class="landing-faq">
+        <details><summary>Is it really free?</summary><p>Yes. The free plan gives you 10 practice questions and 3 AI tutor messages every day, forever. Premium is optional and removes every limit.</p></details>
+        <details><summary>Is this the same as the real SAT?</summary><p>It follows the current digital SAT format — 4 modules, 108 questions, 32-minute Reading &amp; Writing modules and 35-minute Math modules, adaptive Module 2, and the official Desmos calculator in Math.</p></details>
+        <details><summary>Do I need an API key for the AI tutor?</summary><p>No. The built-in SAT Sage works with zero keys. Power users can optionally paste a free Google Gemini key in Settings for a smarter tutor.</p></details>
+        <details><summary>How do the practice tests compare to the real thing?</summary><p>Questions are generated live in SAT style, and you get an estimated 400–1600 scaled score plus a question-by-question review of every miss.</p></details>
+        <details><summary>Can I cancel premium anytime?</summary><p>Yes — cancel from the Premium page and you stay premium until the end of the period. Lifetime is a one-time purchase.</p></details>
+      </div>
+    </section>
+
+    <section class="landing-cta">
+      <h2>Your next practice is 30 seconds away.</h2>
+      <p class="muted">Create a free account — your XP, streaks and progress are saved.</p>
+      <button class="btn btn-primary btn-lg" data-landing-auth="signup">Create free account</button>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="landing-footer-brand">
+        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <span>SAT Arena — free gamified SAT prep for the digital SAT.</span>
+      </div>
+      <div class="landing-footer-links">
+        <a href="terms.html">Terms of Service</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="refund.html">Refund Policy</a>
+        <a href="mailto:tanwarojayit@gmail.com?subject=SAT%20Arena%20feedback">Contact</a>
+      </div>
+    </footer>
+  </section>
+
   <!-- ============ AUTH VIEW ============ -->
-  <section id="view-auth" class="view">
+  <section id="view-auth" class="view hidden">
     <div class="auth-layout">
       <div class="auth-hero">
         <div class="brand-badge">
@@ -151,6 +299,13 @@
           </form>
         </div>
         <p class="auth-footnote">Your progress and XP are saved to your account.</p>
+        <p class="auth-footnote" style="margin-top:4px">
+          <a href="terms.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Terms</a>
+          <span style="color:var(--border-strong)">&nbsp;·&nbsp;</span>
+          <a href="privacy.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Privacy</a>
+          <span style="color:var(--border-strong)">&nbsp;·&nbsp;</span>
+          <a href="refund.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Refunds</a>
+        </p>
       </div>
     </div>
   </section>
@@ -724,16 +879,36 @@
               <li><span class="plan-check muted">✓</span> Ad-supported</li>
             </ul>
           </div>
-          <div class="plan-card premium">
-            <h3>Premium</h3>
-            <p class="plan-price" id="premium-page-price">$9.99<span>/month</span></p>
+          <button type="button" class="plan-card premium selectable selected" data-plan="monthly">
+            <h3>Monthly</h3>
+            <p class="plan-price" data-price-for="monthly">$9.99<span>/month</span></p>
             <ul>
               <li><span class="plan-check">✓</span> Unlimited practice, every topic</li>
               <li><span class="plan-check">✓</span> Full-length practice tests with Desmos</li>
               <li><span class="plan-check">✓</span> Unlimited AI tutor</li>
               <li><span class="plan-check">✓</span> Topic analytics + no ads</li>
             </ul>
-          </div>
+          </button>
+          <button type="button" class="plan-card premium selectable" data-plan="annual">
+            <h3>Annual <span class="plan-badge best">2 months free</span></h3>
+            <p class="plan-price" data-price-for="annual">$79.99<span>/year</span></p>
+            <ul>
+              <li><span class="plan-check">✓</span> Everything in Monthly</li>
+              <li><span class="plan-check">✓</span> Billed once a year — save 33%</li>
+              <li><span class="plan-check">✓</span> Unlimited practice tests</li>
+              <li><span class="plan-check">✓</span> Ad-free experience</li>
+            </ul>
+          </button>
+          <button type="button" class="plan-card premium selectable" data-plan="lifetime">
+            <h3>Lifetime <span class="plan-badge best">Best value</span></h3>
+            <p class="plan-price" data-price-for="lifetime">$149<span>one-time</span></p>
+            <ul>
+              <li><span class="plan-check">✓</span> Everything in Premium, forever</li>
+              <li><span class="plan-check">✓</span> One payment, no renewals</li>
+              <li><span class="plan-check">✓</span> Lifetime access to new features</li>
+              <li><span class="plan-check">✓</span> Supports independent development</li>
+            </ul>
+          </button>
         </div>
 
         <div class="card premium-features-card">
@@ -748,6 +923,7 @@
 
         <div class="card premium-cta-card">
           <p class="form-error" id="premium-error"></p>
+          <p class="muted small" id="premium-selected-note" style="margin-bottom:10px">Monthly — $9.99/month, cancel anytime.</p>
           <div class="premium-cta-row">
             <button class="btn btn-primary" id="premium-subscribe-btn">
               <span class="btn-label">Subscribe</span>
@@ -1017,6 +1193,16 @@
               <input id="cfg-premium-price" type="number" min="1" max="999999" placeholder="999" />
               <span class="cfg-hint">999 = $9.99/month. Billed monthly via Stripe Checkout.</span>
             </div>
+            <div class="cfg-field">
+              <label for="cfg-premium-annual">Premium annual price (USD cents)</label>
+              <input id="cfg-premium-annual" type="number" min="1" max="999999" placeholder="7999" />
+              <span class="cfg-hint">7999 = $79.99/year (~2 months free). Billed yearly.</span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-premium-lifetime">Lifetime price (USD cents, one-time)</label>
+              <input id="cfg-premium-lifetime" type="number" min="1" max="999999" placeholder="14900" />
+              <span class="cfg-hint">14900 = $149.00 one-time payment — premium forever.</span>
+            </div>
             <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-stripe-clear-btn">Clear saved Stripe key</button>
           </div>
 
@@ -1175,6 +1361,12 @@
   </div>
 
   <div class="confetti-layer" id="confetti-layer"></div>
+
+  <!-- floating feedback button (in-app) -->
+  <a class="feedback-btn hidden" id="feedback-btn" href="mailto:tanwarojayit@gmail.com?subject=SAT%20Arena%20feedback" title="Send feedback or report a bug">
+    <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+    Feedback
+  </a>
 
   <script src="app.js"></script>
 </body>

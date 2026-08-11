@@ -1362,6 +1362,12 @@ app.get('/api/subscription', authRequired, async (req, res) => {
     premium_until: req.user.premium_until || null,
     priceCents: c.premiumPriceCents,
     paymentsConfigured: Boolean(c.stripeKey),
+    // Plan catalog for the premium page / plan selector
+    plans: [
+      { id: 'monthly', label: 'Monthly', priceCents: c.premiumPriceCents, per: 'month' },
+      { id: 'annual', label: 'Annual', priceCents: c.premiumAnnualCents, per: 'year' },
+      { id: 'lifetime', label: 'Lifetime', priceCents: c.premiumLifetimeCents, per: 'one-time' },
+    ],
     dailyUsed: await todayAnswerCount(req.user.id),
     dailyLimit: FREE_DAILY_QUESTIONS,
     tutorUsed: await todayTutorCount(req.user.id),
@@ -1380,21 +1386,30 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
   }
   const base = c.appUrl || `${req.protocol}://${req.get('host')}`;
   try {
+    // Plan catalog: monthly subscription (default), annual subscription, or a
+    // one-time lifetime purchase. Prices come from config (admin-editable).
+    const plan = ['monthly', 'annual', 'lifetime'].includes(req.body && req.body.plan) ? req.body.plan : 'monthly';
+    const def = {
+      monthly: { cents: c.premiumPriceCents, mode: 'subscription', interval: 'month', orderPlan: 'premium-monthly' },
+      annual: { cents: c.premiumAnnualCents, mode: 'subscription', interval: 'year', orderPlan: 'premium-annual' },
+      lifetime: { cents: c.premiumLifetimeCents, mode: 'payment', interval: null, orderPlan: 'premium-lifetime' },
+    }[plan];
+    const params = new URLSearchParams({
+      mode: def.mode,
+      'line_items[0][price_data][currency]': 'usd',
+      'line_items[0][price_data][product_data][name]': 'SAT Arena Premium' + (plan === 'lifetime' ? ' — Lifetime' : ''),
+      'line_items[0][price_data][unit_amount]': String(def.cents),
+      'line_items[0][quantity]': '1',
+      success_url: `${base}/api/subscription/confirm?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/#/premium`,
+      client_reference_id: String(req.user.id),
+      metadata: { plan: def.orderPlan },
+    });
+    if (def.interval) params.set('line_items[0][price_data][recurring][interval]', def.interval);
     const sessionRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        mode: 'subscription',
-        'line_items[0][price_data][currency]': 'usd',
-        'line_items[0][price_data][product_data][name]': 'SAT Arena Premium',
-        'line_items[0][price_data][unit_amount]': String(c.premiumPriceCents),
-        'line_items[0][price_data][recurring][interval]': 'month',
-        'line_items[0][quantity]': '1',
-        success_url: `${base}/api/subscription/confirm?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${base}/#/store`,
-        client_reference_id: String(req.user.id),
-        metadata: { plan: 'premium' },
-      }),
+      body: params,
     });
     const data = await sessionRes.json();
     if (!sessionRes.ok || !data.url) {
@@ -1402,7 +1417,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
       return res.status(502).json({ error: 'Could not start checkout.' });
     }
     await db.prepare('INSERT INTO store_orders (user_id, plan, gems, amount_cents, status, provider, provider_ref) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(req.user.id, 'premium', 0, c.premiumPriceCents, 'pending', 'stripe', data.id);
+      .run(req.user.id, def.orderPlan, 0, def.cents, 'pending', 'stripe', data.id);
     res.json({ ok: true, url: data.url });
   } catch (e) {
     console.error('Stripe subscribe error:', e);
@@ -1425,7 +1440,12 @@ app.get('/api/subscription/confirm', authRequired, async (req, res) => {
     if (order && Number(order.user_id) === req.user.id) {
       const claimed = await db.prepare("UPDATE store_orders SET status = 'paid' WHERE provider_ref = ? AND status = 'pending'").run(sessionId);
       if (claimed.changes === 1) {
-        const until = new Date(Date.now() + 30 * 864e5).toISOString();
+        // premium-annual → 365 days · premium-lifetime → permanent (NULL) ·
+        // everything else (monthly, or a legacy 'premium' order from before
+        // the plans catalog) → 30 days. Only an explicit lifetime order ever
+        // grants permanent premium.
+        const days = order.plan === 'premium-annual' ? 365 : order.plan === 'premium-lifetime' ? 0 : 30;
+        const until = days ? new Date(Date.now() + days * 864e5).toISOString() : null;
         await db.prepare('UPDATE users SET plan = ?, premium_until = ? WHERE id = ?').run('premium', until, req.user.id);
       }
     }
@@ -1560,6 +1580,8 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       adsense_client: maskSecret(c.adsenseClient),
       stripe_secret_key: maskSecret(c.stripeKey),
       premium_price_cents: String(c.premiumPriceCents),
+      premium_annual_cents: String(c.premiumAnnualCents),
+      premium_lifetime_cents: String(c.premiumLifetimeCents),
     },
     status: {
       google: Boolean(c.googleClientId && c.googleClientSecret),
@@ -1574,7 +1596,7 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
 });
 
 app.post('/api/admin/config', adminRequired, async (req, res) => {
-  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents'];
+  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents', 'premium_annual_cents', 'premium_lifetime_cents'];
 
   // Empty fields and masked values ('•••') are treated as "keep current" so
   // a save that leaves a secret untouched can never overwrite it with the
@@ -1623,6 +1645,8 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       adsense_client: maskSecret(c.adsenseClient),
       stripe_secret_key: maskSecret(c.stripeKey),
       premium_price_cents: String(c.premiumPriceCents),
+      premium_annual_cents: String(c.premiumAnnualCents),
+      premium_lifetime_cents: String(c.premiumLifetimeCents),
     },
     status: {
       google: Boolean(c.googleClientId && c.googleClientSecret),
