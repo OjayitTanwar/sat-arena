@@ -2279,8 +2279,9 @@ async function loadAdminConfig() {
   $('#cfg-smtp-user').value = config.smtp_user || '';
   $('#cfg-smtp-pass').value = '';
   $('#cfg-smtp-secure').checked = config.smtp_secure === '1';
-  // email provider radio: SMTP wins when a host is configured
-  const useSmtp = Boolean(config.smtp_host && config.smtp_user);
+  // email provider radio: SMTP wins when a host is configured (the user may
+  // still need to add credentials, so host alone is enough to select it)
+  const useSmtp = Boolean(config.smtp_host);
   $$('input[name="email-provider"]').forEach((r) => { r.checked = r.value === (useSmtp ? 'smtp' : 'resend'); });
   $('#cfg-email-smtp-group').classList.toggle('hidden', !useSmtp);
   $('#cfg-email-resend-group').classList.toggle('hidden', useSmtp);
