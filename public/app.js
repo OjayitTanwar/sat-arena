@@ -349,6 +349,7 @@ function initPasswordToggles() {
     ['#su-password', '#su-pw-toggle'],
     ['#reset-password', '#reset-pw-toggle'],
     ['#set-ai-key', '#set-ai-key-toggle'],
+    ['#cfg-smtp-pass', '#cfg-smtp-pass-toggle'],
   ];
   for (const [inputSel, btnSel] of pairs) {
     const input = $(inputSel);
@@ -2273,6 +2274,16 @@ async function loadAdminConfig() {
   $('#cfg-app-url').value = config.app_url || '';
   $('#cfg-groq-model').value = config.groq_model || '';
   $('#cfg-email-from').value = config.email_from || '';
+  $('#cfg-smtp-host').value = config.smtp_host || '';
+  $('#cfg-smtp-port').value = config.smtp_port || '587';
+  $('#cfg-smtp-user').value = config.smtp_user || '';
+  $('#cfg-smtp-pass').value = '';
+  $('#cfg-smtp-secure').checked = config.smtp_secure === '1';
+  // email provider radio: SMTP wins when a host is configured
+  const useSmtp = Boolean(config.smtp_host && config.smtp_user);
+  $$('input[name="email-provider"]').forEach((r) => { r.checked = r.value === (useSmtp ? 'smtp' : 'resend'); });
+  $('#cfg-email-smtp-group').classList.toggle('hidden', !useSmtp);
+  $('#cfg-email-resend-group').classList.toggle('hidden', useSmtp);
   $('#cfg-ads-enabled').checked = config.ads_enabled === '1';
   $('#cfg-ads-code').value = config.ads_code || '';
   $('#cfg-adsense-client').value = '';
@@ -2290,6 +2301,7 @@ async function loadAdminConfig() {
   setHint('#cfg-gemini-key-hint', config.gemini_api_key);
   setHint('#cfg-groq-key-hint', config.groq_api_key);
   setHint('#cfg-resend-key-hint', config.resend_api_key);
+  setHint('#cfg-smtp-pass-hint', config.smtp_pass);
   setHint('#cfg-adsense-client-hint', config.adsense_client);
   setHint('#cfg-stripe-key-hint', config.stripe_secret_key);
   $('#cfg-google-clear-btn').classList.toggle('hidden', !status.google);
@@ -2318,6 +2330,10 @@ async function saveAdminConfig() {
       ['groq_model', $('#cfg-groq-model')],
       ['resend_api_key', $('#cfg-resend-key')],
       ['email_from', $('#cfg-email-from')],
+      ['smtp_host', $('#cfg-smtp-host')],
+      ['smtp_port', $('#cfg-smtp-port')],
+      ['smtp_user', $('#cfg-smtp-user')],
+      ['smtp_pass', $('#cfg-smtp-pass')],
       ['ads_code', $('#cfg-ads-code')],
       ['adsense_client', $('#cfg-adsense-client')],
       ['stripe_secret_key', $('#cfg-stripe-key')],
@@ -2325,6 +2341,8 @@ async function saveAdminConfig() {
     ];
     if ($('#cfg-ads-enabled').checked) body.ads_enabled = '1';
     else clears.push('ads_enabled'); // blank = keep, so an explicit clear turns ads off
+    if ($('#cfg-smtp-secure').checked) body.smtp_secure = '1';
+    else clears.push('smtp_secure'); // keep in sync with the checkbox
     const netRadio = $$('input[name="ads-network"]').find((r) => r.checked);
     body.ads_network = netRadio ? netRadio.value : 'custom';
     for (const [k, el] of pairs) {
@@ -2655,8 +2673,13 @@ async function init() {
     if (confirm('Clear the saved AI keys? The tutor will fall back to the built-in tutor unless .env keys exist.')) clearAdminConfig(['gemini_api_key', 'groq_api_key', 'groq_model']);
   });
   $('#cfg-email-clear-btn').addEventListener('click', () => {
-    if (confirm('Clear the saved email (Resend) settings? OTP codes will be shown in dev mode until a key is added.')) clearAdminConfig(['resend_api_key', 'email_from']);
+    if (confirm('Clear the saved email settings? OTP codes will be shown in dev mode until a provider is added.')) clearAdminConfig(['resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure']);
   });
+  $$('input[name="email-provider"]').forEach((r) => r.addEventListener('change', () => {
+    const smtp = r.value === 'smtp' && r.checked;
+    $('#cfg-email-smtp-group').classList.toggle('hidden', !smtp);
+    $('#cfg-email-resend-group').classList.toggle('hidden', smtp);
+  }));
   $('#cfg-stripe-clear-btn').addEventListener('click', () => {
     if (confirm('Clear the saved Stripe key? Payments will be disabled until a key is added.')) clearAdminConfig(['stripe_secret_key']);
   });

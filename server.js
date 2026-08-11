@@ -80,11 +80,30 @@ function generateOtp() {
   return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 }
 
-// Send an email through Resend when a key is configured. Without a key the
-// app runs in DEV mode: the code is returned in the response so flows still
-// work locally (and the admin panel can add the key later).
+// Send an email. Three paths, in priority order:
+//   1. SMTP (any provider — Gmail app password, SMTP2GO, Brevo, Zoho…) — free
+//      and works TODAY without a verified domain, so it wins when configured.
+//   2. Resend API (needs a verified sending domain for external recipients).
+//   3. DEV mode: no provider configured — the code is returned in the
+//      response so signup/reset flows still work locally.
 async function sendEmail(to, subject, html) {
   const c = await getConfig();
+  if (c.smtpHost && c.smtpUser) {
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: c.smtpHost,
+        port: c.smtpPort,
+        secure: c.smtpSecure, // true for 465, false for 587 (STARTTLS)
+        auth: { user: c.smtpUser, pass: c.smtpPass },
+      });
+      await transporter.sendMail({ from: c.smtpUser, to, subject, html });
+      return { sent: true, dev: false, via: 'smtp' };
+    } catch (e) {
+      console.error('SMTP send failed:', e && e.message ? e.message : e);
+      return { sent: false, dev: false, via: 'smtp' };
+    }
+  }
   if (!c.resendKey) return { sent: false, dev: true };
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -96,10 +115,10 @@ async function sendEmail(to, subject, html) {
       console.error('Resend error:', res.status, (await res.text()).slice(0, 200));
       return { sent: false, dev: false };
     }
-    return { sent: true, dev: false };
+    return { sent: true, dev: false, via: 'resend' };
   } catch (e) {
     console.error('Email send failed:', e && e.message ? e.message : e);
-    return { sent: false, dev: false };
+    return { sent: false, dev: false, via: 'resend' };
   }
 }
 
@@ -1529,6 +1548,11 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       groq_model: c.groqModel,
       resend_api_key: maskSecret(c.resendKey),
       email_from: c.emailFrom,
+      smtp_host: c.smtpHost,
+      smtp_port: String(c.smtpPort),
+      smtp_user: c.smtpUser,
+      smtp_pass: maskSecret(c.smtpPass),
+      smtp_secure: c.smtpSecure ? '1' : '',
       ads_enabled: c.adsEnabled ? '1' : '',
       ads_code: c.adsCode,
       ads_network: c.adsNetwork || 'custom',
@@ -1541,7 +1565,7 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       gemini: Boolean(c.geminiKey),
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
-      email: Boolean(c.resendKey),
+      email: Boolean(c.resendKey || (c.smtpHost && c.smtpUser)),
       ads: c.adsEnabled && Boolean(c.adsNetwork === 'adsense' ? c.adsenseClient : c.adsCode),
       payments: Boolean(c.stripeKey),
     },
@@ -1549,7 +1573,7 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
 });
 
 app.post('/api/admin/config', adminRequired, async (req, res) => {
-  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents'];
+  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents'];
 
   // Empty fields and masked values ('•••') are treated as "keep current" so
   // a save that leaves a secret untouched can never overwrite it with the
@@ -1587,6 +1611,11 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       groq_model: c.groqModel,
       resend_api_key: maskSecret(c.resendKey),
       email_from: c.emailFrom,
+      smtp_host: c.smtpHost,
+      smtp_port: String(c.smtpPort),
+      smtp_user: c.smtpUser,
+      smtp_pass: maskSecret(c.smtpPass),
+      smtp_secure: c.smtpSecure ? '1' : '',
       ads_enabled: c.adsEnabled ? '1' : '',
       ads_code: c.adsCode,
       ads_network: c.adsNetwork || 'custom',
@@ -1599,7 +1628,7 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       gemini: Boolean(c.geminiKey),
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
-      email: Boolean(c.resendKey),
+      email: Boolean(c.resendKey || (c.smtpHost && c.smtpUser)),
       ads: c.adsEnabled && Boolean(c.adsNetwork === 'adsense' ? c.adsenseClient : c.adsCode),
       payments: Boolean(c.stripeKey),
     },

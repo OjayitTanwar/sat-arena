@@ -907,17 +907,58 @@
               </h3>
               <span class="cfg-status off" id="cfg-email-status"><span class="dot"></span>Not configured</span>
             </div>
-            <p class="cfg-desc">Add a Resend API key (free at resend.com, no card) so verification codes and password-reset emails actually send. Without it, codes are shown on screen in dev mode.</p>
+            <p class="cfg-desc">Both options are free. <b>SMTP</b> goes live fastest — it works with any provider, including a <b>Gmail app password</b> (no domain needed, ~500 emails/day) or SMTP2GO / Brevo once you sign up. Resend API needs a verified sending domain to reach students.</p>
+
             <div class="cfg-field">
-              <label for="cfg-resend-key">Resend API key</label>
-              <input id="cfg-resend-key" type="password" autocomplete="off" placeholder="re_…" />
-              <span class="cfg-hint" id="cfg-resend-key-hint"></span>
+              <label>Email provider</label>
+              <div class="cfg-radio-row">
+                <label class="cfg-check"><input type="radio" name="email-provider" value="smtp" checked /> SMTP (Gmail, SMTP2GO, Brevo…)</label>
+                <label class="cfg-check"><input type="radio" name="email-provider" value="resend" /> Resend API</label>
+              </div>
             </div>
-            <div class="cfg-field">
-              <label for="cfg-email-from">From address</label>
-              <input id="cfg-email-from" type="text" autocomplete="off" placeholder="SAT Arena &lt;onboarding@resend.dev&gt;" />
-              <span class="cfg-hint">Use onboarding@resend.dev for testing, or a verified domain in production.</span>
+
+            <div id="cfg-email-smtp-group">
+              <div class="cfg-field">
+                <label for="cfg-smtp-host">SMTP host</label>
+                <input id="cfg-smtp-host" type="text" autocomplete="off" placeholder="smtp.gmail.com" />
+              </div>
+              <div class="cfg-field">
+                <label for="cfg-smtp-port">SMTP port</label>
+                <input id="cfg-smtp-port" type="number" min="1" max="65535" placeholder="587" />
+                <span class="cfg-hint">587 = STARTTLS (most providers), 465 = SSL. Gmail works with both.</span>
+              </div>
+              <div class="cfg-field">
+                <label for="cfg-smtp-user">SMTP username (email address)</label>
+                <input id="cfg-smtp-user" type="text" autocomplete="off" placeholder="you@gmail.com" />
+              </div>
+              <div class="cfg-field">
+                <label for="cfg-smtp-pass">SMTP password / app password</label>
+                <div class="pw-wrap">
+                  <input id="cfg-smtp-pass" type="password" autocomplete="off" placeholder="16-character app password" />
+                  <button type="button" class="pw-toggle" id="cfg-smtp-pass-toggle" title="Show password" aria-label="Show password">
+                    <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <span class="cfg-hint" id="cfg-smtp-pass-hint"></span>
+              </div>
+              <div class="cfg-field">
+                <label class="cfg-check"><input type="checkbox" id="cfg-smtp-secure" /> Use SSL (port 465)</label>
+              </div>
             </div>
+
+            <div id="cfg-email-resend-group" class="hidden">
+              <div class="cfg-field">
+                <label for="cfg-resend-key">Resend API key</label>
+                <input id="cfg-resend-key" type="password" autocomplete="off" placeholder="re_…" />
+                <span class="cfg-hint" id="cfg-resend-key-hint"></span>
+              </div>
+              <div class="cfg-field">
+                <label for="cfg-email-from">From address</label>
+                <input id="cfg-email-from" type="text" autocomplete="off" placeholder="SAT Arena &lt;onboarding@resend.dev&gt;" />
+                <span class="cfg-hint">Needs a verified domain in Resend to reach external recipients.</span>
+              </div>
+            </div>
+
             <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-email-clear-btn">Clear saved email settings</button>
           </div>
 

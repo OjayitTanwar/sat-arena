@@ -203,6 +203,23 @@ function check(name, ok, extra) {
     check('stripe key cleared from config', !d.config.stripe_secret_key);
     check('ads config cleared', d.config.ads_enabled !== '1');
 
+    // 19. SMTP email path: configured (even bogus creds) → no dev-code leak
+    //     and the route stays up; cleared → dev mode returns codes again.
+    r = await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ smtp_host: 'smtp.gmail.com', smtp_port: '587', smtp_user: 'tester@gmail.com', smtp_pass: 'bogusapppass123', smtp_secure: '1' }) });
+    check('admin saves smtp config', r.status === 200);
+    r = await fetch(base + '/api/admin/config', { headers: adm.h() });
+    d = await j(r);
+    check('smtp fields in config + email status on', d.config && d.config.smtp_host === 'smtp.gmail.com' && d.status && d.status.email === true);
+    const f4Email = 'free4' + stamp + '@t.com';
+    r = await fetch(base + '/api/auth/otp/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: f4Email, purpose: 'signup' }) });
+    d = await j(r);
+    check('smtp configured → no dev-code leak', r.status === 200 && d.dev === null);
+    r = await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ clear: ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure'] }) });
+    check('admin clears smtp', r.status === 200);
+    r = await fetch(base + '/api/auth/otp/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: f4Email, purpose: 'signup' }) });
+    d = await j(r);
+    check('dev mode returns code again after clear', r.status === 200 && /^\d{6}$/.test(d.dev || ''));
+
     // 16 (moved here). admin revoke → back to free
     r = await fetch(base + '/api/admin/plan', { method: 'POST', headers: adm.h(), body: JSON.stringify({ userId, plan: 'free' }) });
     check('admin revokes premium', r.status === 200);
