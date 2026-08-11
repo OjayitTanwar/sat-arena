@@ -120,7 +120,13 @@ async function api(path, options = {}) {
     showView('auth');
     throw new Error('Session expired. Please log in again.');
   }
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed');
+    // 402 = plan gate hit (daily limit / premium feature) — carry the flag so
+    // callers can open the upgrade modal instead of just toasting.
+    if (res.status === 402) { err.upgrade = true; err.code = data.code || 'premium'; }
+    throw err;
+  }
   return data;
 }
 
@@ -340,6 +346,7 @@ function initPasswordToggles() {
   const pairs = [
     ['#login-password', '#login-pw-toggle'],
     ['#su-password', '#su-pw-toggle'],
+    ['#reset-password', '#reset-pw-toggle'],
     ['#set-ai-key', '#set-ai-key-toggle'],
   ];
   for (const [inputSel, btnSel] of pairs) {
@@ -353,6 +360,121 @@ function initPasswordToggles() {
       btn.title = show ? 'Hide password' : 'Show password';
       input.focus();
     });
+  }
+}
+
+// ── Premium plan / free-tier limits / ads ─────────────────────────────────
+state.plan = { premium: false, plan: 'free', priceCents: 999, dailyUsed: 0, dailyLimit: 10, tutorUsed: 0, tutorLimit: 3 };
+
+function applyPlan(plan) {
+  if (!plan) return;
+  state.plan = { ...state.plan, ...plan };
+  const badge = $('#top-premium-badge');
+  if (badge) badge.classList.toggle('hidden', !plan.premium);
+  renderFreeLimit();
+  renderTutorLimitNote();
+}
+
+// “Free plan: X of 10 questions left today” chip on the practice screen
+function renderFreeLimit() {
+  const card = $('#free-limit-card');
+  const text = $('#free-limit-text');
+  if (!card || !text) return;
+  const free = state.user && !state.user.is_admin && !state.plan.premium;
+  if (free) {
+    const left = Math.max(0, state.plan.dailyLimit - state.plan.dailyUsed);
+    card.classList.remove('hidden');
+    text.innerHTML = `<b>Free plan:</b> ${left} of ${state.plan.dailyLimit} questions left today — go premium for unlimited practice.`;
+  } else {
+    card.classList.add('hidden');
+  }
+}
+
+function renderTutorLimitNote() {
+  const note = $('#tutor-limit-note');
+  if (!note) return;
+  const free = state.user && !state.user.is_admin && !state.plan.premium;
+  if (free) {
+    const left = Math.max(0, state.plan.tutorLimit - state.plan.tutorUsed);
+    note.classList.remove('hidden');
+    note.textContent = `Free tier: ${left} of ${state.plan.tutorLimit} tutor messages left today. Premium chats freely.`;
+  } else {
+    note.classList.add('hidden');
+  }
+}
+
+function isFreeUser() {
+  return state.user && !state.user.is_admin && !state.plan.premium;
+}
+
+// True when the daily practice quota still has room (or the user is premium).
+function practiceQuotaLeft() {
+  if (!isFreeUser()) return true;
+  return state.plan.dailyUsed < state.plan.dailyLimit;
+}
+
+// ── Upgrade modal ──────────────────────────────────────────────────────────
+function openUpgrade(reason) {
+  $('#upgrade-error').textContent = '';
+  const price = state.plan.priceCents ? '$' + (state.plan.priceCents / 100).toFixed(2) : '$9.99';
+  const priceEl = $('#upgrade-price');
+  if (priceEl) priceEl.innerHTML = price + '<span>/month</span>';
+  $('#upgrade-modal').classList.remove('hidden');
+}
+function closeUpgrade() {
+  $('#upgrade-modal').classList.add('hidden');
+}
+
+async function subscribePremium() {
+  const btn = $('#upgrade-subscribe-btn');
+  const label = btn.querySelector('.btn-label');
+  const spinner = btn.querySelector('.btn-spinner');
+  btn.disabled = true;
+  if (label) label.classList.add('hidden');
+  if (spinner) spinner.classList.remove('hidden');
+  try {
+    const r = await api('/api/subscribe', { method: 'POST' });
+    if (r.url) { location.href = r.url; return; } // Stripe checkout
+    if (r.already) { closeUpgrade(); toast('You are already premium'); return; }
+  } catch (err) {
+    $('#upgrade-error').textContent = err.message + ' (The admin can grant premium free from the admin panel.)';
+    Sound.wrong();
+  } finally {
+    btn.disabled = false;
+    if (label) label.classList.remove('hidden');
+    if (spinner) spinner.classList.add('hidden');
+  }
+}
+
+// ── Ad slots (free tier only) ──────────────────────────────────────────────
+// The admin pastes the ad network snippet (e.g. Adsterra) in the admin panel;
+// when enabled it renders into the dashboard/practice/test slots.
+function renderAds(ads) {
+  const enabled = ads && ads.enabled && ads.code && isFreeUser();
+  const slots = ['#ad-slot-dashboard', '#ad-slot-practice', '#ad-slot-test'];
+  for (const sel of slots) {
+    const el = $(sel);
+    if (!el) continue;
+    if (enabled) {
+      el.classList.remove('hidden');
+      // re-create <script> nodes so the ad snippet actually executes
+      el.innerHTML = '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = ads.code;
+      for (const node of [...tmp.children]) {
+        if (node.tagName === 'SCRIPT') {
+          const s = document.createElement('script');
+          for (const attr of [...node.attributes]) s.setAttribute(attr.name, attr.value);
+          s.textContent = node.textContent;
+          el.appendChild(s);
+        } else {
+          el.appendChild(node);
+        }
+      }
+    } else {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+    }
   }
 }
 
@@ -388,8 +510,12 @@ function initAuth() {
       const isLogin = tab.dataset.tab === 'login';
       $('#form-login').classList.toggle('hidden', !isLogin);
       $('#form-signup').classList.toggle('hidden', isLogin);
+      $('#form-reset').classList.add('hidden');
       $('#login-error').textContent = '';
       $('#signup-error').textContent = '';
+      $('#signup-step1').classList.remove('hidden');
+      $('#signup-step2').classList.add('hidden');
+      pendingSignup = null;
     });
   });
 
@@ -435,24 +561,137 @@ function initAuth() {
     }
   });
 
-  $('#form-signup').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    setBtnLoading('#signup-submit-btn', true);
-    const username = $('#su-username').value.trim();
+  // ── Email signup with OTP verification ──────────────────────────────────
+  // Step 1 collects the details and requests a code; step 2 verifies it and
+  // creates the account. pendingSignup holds the details between the steps.
+  let pendingSignup = null;
+
+  async function requestSignupCode() {
     const email = $('#su-email').value.trim();
-    const password = $('#su-password').value;
+    setBtnLoading('#signup-submit-btn', true);
     try {
-      const { user } = await api('/api/auth/signup', { method: 'POST', body: { username, email, password } });
-      state.user = user;
-      // Log to FormPost (non-blocking)
-      postToFormpost({ type: 'signup', username, email, timestamp: new Date().toISOString() });
-      Sound.finish();
-      toast(`Welcome to SAT Arena, ${user.username}`);
-      navigate('dashboard');
+      const r = await api('/api/auth/otp/request', { method: 'POST', body: { email, purpose: 'signup' } });
+      pendingSignup = {
+        username: $('#su-username').value.trim(),
+        email,
+        password: $('#su-password').value,
+      };
+      $('#signup-step1').classList.add('hidden');
+      $('#signup-step2').classList.remove('hidden');
+      $('#signup-otp-error').textContent = '';
+      $('#signup-otp-hint').textContent = r.dev
+        ? `Dev mode — no email provider configured yet. Your code is ${r.dev}.`
+        : `We sent a 6-digit code to ${email}. Enter it below to finish creating your account.`;
+      $('#su-otp').value = r.dev || '';
+      setTimeout(() => $('#su-otp').focus(), 60);
+      Sound.click();
     } catch (err) {
       $('#signup-error').textContent = err.message;
     } finally {
       setBtnLoading('#signup-submit-btn', false);
+    }
+  }
+
+  $('#form-signup').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('#signup-error').textContent = '';
+    if (!$('#su-username').value.trim() || !$('#su-email').value.trim() || !$('#su-password').value) {
+      $('#signup-error').textContent = 'Fill in every field to continue.';
+      return;
+    }
+    await requestSignupCode();
+  });
+
+  $('#signup-verify-btn').addEventListener('click', async () => {
+    if (!pendingSignup) return;
+    setBtnLoading('#signup-verify-btn', true);
+    try {
+      const { user } = await api('/api/auth/signup', {
+        method: 'POST',
+        body: { ...pendingSignup, otp: $('#su-otp').value.trim() },
+      });
+      state.user = user;
+      const un = pendingSignup.username;
+      pendingSignup = null;
+      postToFormpost({ type: 'signup', username: un, email: user.email, timestamp: new Date().toISOString() });
+      Sound.finish();
+      toast(`Welcome to SAT Arena, ${user.username}`);
+      navigate('dashboard');
+    } catch (err) {
+      $('#signup-otp-error').textContent = err.message;
+    } finally {
+      setBtnLoading('#signup-verify-btn', false);
+    }
+  });
+
+  $('#signup-resend-btn').addEventListener('click', () => { requestSignupCode(); });
+
+  $('#signup-back-btn').addEventListener('click', () => {
+    pendingSignup = null;
+    $('#signup-step2').classList.add('hidden');
+    $('#signup-step1').classList.remove('hidden');
+    $('#signup-error').textContent = '';
+  });
+
+  // ── Forgot password / reset (email → code → new password) ───────────────
+  let resetStep = 1;
+  const resetForm = $('#form-reset');
+
+  $('#forgot-pw-btn').addEventListener('click', () => {
+    $('#form-login').classList.add('hidden');
+    resetForm.classList.remove('hidden');
+    $('#reset-error').textContent = '';
+    resetStep = 1;
+    $('#reset-otp-wrap').classList.add('hidden');
+    $('#reset-submit-label').textContent = 'Send code';
+    setTimeout(() => $('#reset-email').focus(), 60);
+    Sound.click();
+  });
+
+  $('#reset-back-btn').addEventListener('click', () => {
+    resetForm.classList.add('hidden');
+    $('#form-login').classList.remove('hidden');
+  });
+
+  resetForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#reset-email').value.trim();
+    if (resetStep === 1) {
+      setBtnLoading('#reset-submit-btn', true);
+      try {
+        const r = await api('/api/auth/otp/request', { method: 'POST', body: { email, purpose: 'reset' } });
+        resetStep = 2;
+        $('#reset-otp-wrap').classList.remove('hidden');
+        $('#reset-submit-label').textContent = 'Reset password';
+        $('#reset-error').textContent = r.dev ? `Dev mode — your code is ${r.dev}.` : '';
+        if (r.dev) $('#reset-otp').value = r.dev;
+        Sound.click();
+      } catch (err) {
+        $('#reset-error').textContent = err.message;
+      } finally {
+        setBtnLoading('#reset-submit-btn', false);
+      }
+      return;
+    }
+    const password = $('#reset-password').value;
+    if (password.length < 6) { $('#reset-error').textContent = 'Password must be at least 6 characters.'; return; }
+    setBtnLoading('#reset-submit-btn', true);
+    try {
+      await api('/api/auth/reset/confirm', {
+        method: 'POST',
+        body: { email, otp: $('#reset-otp').value.trim(), password },
+      });
+      toast('Password reset — log in with your new password');
+      Sound.finish();
+      resetForm.classList.add('hidden');
+      $('#form-login').classList.remove('hidden');
+      $('#login-identifier').value = email;
+      $('#login-password').value = '';
+      $('#login-password').focus();
+    } catch (err) {
+      $('#reset-error').textContent = err.message;
+    } finally {
+      setBtnLoading('#reset-submit-btn', false);
     }
   });
 
@@ -706,6 +945,9 @@ async function renderDashboardData(data) {
   if (adminNav2) adminNav2.classList.toggle('hidden', !u.is_admin);
 
   $('#dash-tutor-status').textContent = data.tutor.provider + '.';
+  // premium plan + ad slots (free tier)
+  applyPlan(data.plan);
+  renderAds(data.ads);
   populateDrillPicker().catch(() => {});
   renderQuests();
 }
@@ -731,6 +973,7 @@ function resetPracticeMenu() {
 }
 
 function startGame(modeKey) {
+  if (!practiceQuotaLeft()) { openUpgrade('daily_limit'); return; }
   const mode = MODES[modeKey];
   state.game = {
     mode,
@@ -760,6 +1003,7 @@ function startGame(modeKey) {
 }
 
 function startDrill(topic) {
+  if (!practiceQuotaLeft()) { openUpgrade('daily_limit'); return; }
   const mode = { label: 'Drill', section: null, count: 10, timed: false, lives: 3, topic };
   // seed the proficiency baseline from the last known /api/topics snapshot so
   // the first arrow of the round compares against the real previous rating
@@ -788,6 +1032,11 @@ async function loadQuestion() {
     // adaptive=1 → server picks the difficulty from the user's live skill rating
     ({ questions, adaptiveDiff } = await api(`/api/question?count=1${sectionParam}${topicParam}&adaptive=1`));
   } catch (err) {
+    if (err.upgrade) {
+      resetPracticeMenu();
+      openUpgrade(err.code || 'premium');
+      return;
+    }
     toast(err.message || 'Could not load a question.');
     resetPracticeMenu();
     return;
@@ -892,6 +1141,8 @@ async function chooseAnswer(idx, gridValue) {
       },
     });
     g.firstAnswer = false;
+    state.plan.dailyUsed = (state.plan.dailyUsed || 0) + 1;
+    renderFreeLimit();
   } catch (err) {
     toast(err.message);
     g.locked = false;
@@ -1201,6 +1452,8 @@ function resetTestMenu() {
 }
 
 async function startFullTest() {
+  // Premium feature — server enforces it too.
+  if (isFreeUser()) { openUpgrade('premium'); return; }
   try {
     const { token, modules } = await api('/api/practice-test/start', { method: 'POST' });
     const byKey = {};
@@ -1819,7 +2072,15 @@ async function loadAdminPanel() {
       .map((u) => {
         const acc = u.total_answers > 0 ? Math.round((u.correct_answers / u.total_answers) * 100) + '%' : '—';
         const isAdmin = u.is_admin ? '<span class="tag admin-badge">Admin</span>' : '<span class="muted small">User</span>';
+        const planBadge = u.is_admin || u.plan === 'premium'
+          ? '<span class="tag premium-badge">Premium</span>'
+          : '<span class="muted small">Free</span>';
         const created = (u.created_at || '').slice(0, 10);
+        const planBtn = u.is_admin
+          ? ''
+          : u.plan === 'premium'
+            ? `<button class="btn btn-ghost small-btn" data-plan-action="free" data-user-id="${u.id}">Make free</button>`
+            : `<button class="btn btn-ghost small-btn" data-plan-action="premium" data-user-id="${u.id}">Grant premium</button>`;
         return `<tr class="${u.is_admin ? 'admin-row' : ''}">
           <td class="muted">${u.id}</td>
           <td><b>${escapeHtml(u.username)}</b></td>
@@ -1829,9 +2090,10 @@ async function loadAdminPanel() {
           <td>${u.streak}</td>
           <td>${u.total_answers}</td>
           <td>${acc}</td>
+          <td>${planBadge}</td>
           <td>${isAdmin}</td>
           <td class="muted small">${created}</td>
-          <td><button class="btn btn-ghost small-btn admin-view-btn" data-user-id="${u.id}">View</button></td>
+          <td><span class="admin-row-actions"><button class="btn btn-ghost small-btn admin-view-btn" data-user-id="${u.id}">View</button>${planBtn}</span></td>
         </tr>`;
       })
       .join('');
@@ -1840,6 +2102,22 @@ async function loadAdminPanel() {
     $$('.admin-view-btn').forEach((btn) =>
       btn.addEventListener('click', () => loadAdminUserDetail(parseInt(btn.dataset.userId, 10)))
     );
+
+    // Plan grant/revoke (event delegation — rows re-render)
+    $('#admin-users-body').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-plan-action]');
+      if (!btn) return;
+      btn.disabled = true;
+      try {
+        await api('/api/admin/plan', { method: 'POST', body: { userId: btn.dataset.userId, plan: btn.dataset.planAction } });
+        toast(btn.dataset.planAction === 'premium' ? 'Premium granted' : 'Premium revoked');
+        Sound.click();
+        loadAdminPanel();
+      } catch (err) {
+        toast(err.message || 'Could not update plan.');
+        btn.disabled = false;
+      }
+    });
 
     // Top 5 by XP
     if (statsRes.topByXp.length) {
@@ -1898,6 +2176,8 @@ function renderConfigStatus(status) {
   };
   set('#cfg-google-status', status.google, 'Connected', 'Not configured');
   set('#cfg-ai-status', status.ai, 'AI key connected', 'Built-in tutor');
+  set('#cfg-email-status', status.email, 'Email connected', 'Not configured (dev mode)');
+  set('#cfg-ads-status', status.ads, 'Ads enabled', 'Off');
 }
 
 async function loadAdminConfig() {
@@ -1907,6 +2187,10 @@ async function loadAdminConfig() {
   // key with masked text (empty = "keep current" on the server).
   $('#cfg-app-url').value = config.app_url || '';
   $('#cfg-groq-model').value = config.groq_model || '';
+  $('#cfg-email-from').value = config.email_from || '';
+  $('#cfg-ads-enabled').checked = config.ads_enabled === '1';
+  $('#cfg-ads-code').value = config.ads_code || '';
+  $('#cfg-premium-price').value = config.premium_price_cents || '999';
   const setHint = (id, masked) => {
     const el = $(id);
     if (el) el.textContent = masked ? `Saved: ${masked} — leave blank to keep.` : 'Not set.';
@@ -1915,8 +2199,10 @@ async function loadAdminConfig() {
   setHint('#cfg-google-client-secret-hint', config.google_client_secret);
   setHint('#cfg-gemini-key-hint', config.gemini_api_key);
   setHint('#cfg-groq-key-hint', config.groq_api_key);
+  setHint('#cfg-resend-key-hint', config.resend_api_key);
   $('#cfg-google-clear-btn').classList.toggle('hidden', !status.google);
   $('#cfg-ai-clear-btn').classList.toggle('hidden', !status.ai);
+  $('#cfg-email-clear-btn').classList.toggle('hidden', !status.email);
   renderConfigStatus(status);
   $('#cfg-saved-msg').textContent = '';
 }
@@ -1936,7 +2222,13 @@ async function saveAdminConfig() {
       ['gemini_api_key', $('#cfg-gemini-key')],
       ['groq_api_key', $('#cfg-groq-key')],
       ['groq_model', $('#cfg-groq-model')],
+      ['resend_api_key', $('#cfg-resend-key')],
+      ['email_from', $('#cfg-email-from')],
+      ['ads_code', $('#cfg-ads-code')],
+      ['premium_price_cents', $('#cfg-premium-price')],
     ];
+    if ($('#cfg-ads-enabled').checked) body.ads_enabled = '1';
+    else body.ads_enabled = '';
     for (const [k, el] of pairs) {
       const v = el.value.trim();
       if (v) body[k] = v;
@@ -2030,6 +2322,7 @@ async function refreshTutorStatus() {
     const s = await api('/api/tutor/status');
     $('#tutor-status').textContent = s.provider;
   } catch {}
+  renderTutorLimitNote();
 }
 
 async function sendTutorMessage() {
@@ -2045,11 +2338,19 @@ async function sendTutorMessage() {
   try {
     const { reply } = await api('/api/tutor', { method: 'POST', body: { message: text, history: state.tutorHistory.slice(-6) } });
     state.tutorHistory.push({ role: 'user', content: text }, { role: 'assistant', content: reply });
+    state.plan.tutorUsed = (state.plan.tutorUsed || 0) + 1;
+    renderTutorLimitNote();
     typing.classList.remove('typing');
     typing.innerHTML = renderMarkdown(reply);
     Sound.click();
   } catch (err) {
     typing.classList.remove('typing');
+    if (err.upgrade) {
+      typing.textContent = err.message || 'Free tutor messages used up.';
+      openUpgrade('tutor_limit');
+      renderTutorLimitNote();
+      return;
+    }
     typing.textContent = 'Hmm, I hit a snag. Try again in a moment';
   }
   const log = $('#chat-log');
@@ -2254,6 +2555,15 @@ async function init() {
   $('#cfg-ai-clear-btn').addEventListener('click', () => {
     if (confirm('Clear the saved AI keys? The tutor will fall back to the built-in tutor unless .env keys exist.')) clearAdminConfig(['gemini_api_key', 'groq_api_key', 'groq_model']);
   });
+  $('#cfg-email-clear-btn').addEventListener('click', () => {
+    if (confirm('Clear the saved email (Resend) settings? OTP codes will be shown in dev mode until a key is added.')) clearAdminConfig(['resend_api_key', 'email_from']);
+  });
+
+  // premium upgrade modal
+  $('#upgrade-subscribe-btn').addEventListener('click', subscribePremium);
+  $('#upgrade-cancel').addEventListener('click', closeUpgrade);
+  $('#upgrade-backdrop').addEventListener('click', closeUpgrade);
+  $('#free-limit-upgrade').addEventListener('click', () => { Sound.click(); openUpgrade('daily_limit'); });
   $('#admin-user-close').addEventListener('click', () => $('#admin-user-modal').classList.add('hidden'));
   $('#admin-user-backdrop').addEventListener('click', () => $('#admin-user-modal').classList.add('hidden'));
 

@@ -37,14 +37,30 @@ function solveGrid(prompt) {
 
 async function main() {
   const username = 'flow_' + Date.now().toString(36);
+  const otpRes = await fetch(BASE + '/api/auth/otp/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: username + '@test.com', purpose: 'signup' }),
+  }).then((r) => r.json());
   let res = await fetch(BASE + '/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email: username + '@test.com', password: 'secret123' }),
+    body: JSON.stringify({ username, email: username + '@test.com', password: 'secret123', otp: otpRes.dev }),
   });
   grabCookie(res);
   const signup = await res.json();
   console.log('1. signup →', signup.user.username, '| has_gemini_key:', signup.user.has_gemini_key);
+
+  // full practice tests are premium-only — grant the test user premium via admin
+  const adminLogin = await fetch(BASE + '/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: 'tanwarojayit@gmail.com', password: 'baldeyan' }),
+  });
+  const adminCookie = (adminLogin.headers.get('set-cookie') || '').split(';')[0];
+  await fetch(BASE + '/api/admin/plan', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+    body: JSON.stringify({ userId: signup.user.id, plan: 'premium' }),
+  });
 
   // ── marks on a single answer (wrong answer → 0 marks) ──
   let q = await req('/api/question?count=1&section=math&adaptive=1', { cookie });

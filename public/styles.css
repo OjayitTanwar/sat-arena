@@ -1631,3 +1631,84 @@ table.leaderboard { width: 100%; border-collapse: collapse; }
 /* top-bar gem counter feels spendable */
 #top-gems-counter { position: relative; }
 #top-gems-counter.pop { animation: counter-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ── Premium plan / upgrades / ads ──────────────────────────────────────── */
+.premium-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 14px;
+  border: 1px solid var(--gold); background: var(--gold-soft); color: #b45309;
+  border-radius: 999px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: transform 0.15s ease;
+}
+.premium-badge:hover { transform: translateY(-1px); }
+.premium-badge.hidden { display: none; }
+
+.tag.premium-badge { background: var(--gold-soft); color: #b45309; border-color: var(--gold); }
+.admin-row-actions { display: inline-flex; gap: 6px; align-items: center; }
+
+/* ad slots (free tier) */
+.ad-slot {
+  margin: 0 0 16px; padding: 6px; border-radius: 14px;
+  border: 1px dashed var(--border-strong); background: var(--card-2);
+  min-height: 60px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.ad-slot.hidden { display: none; }
+
+/* free-tier daily limit card */
+.free-limit-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 16px; padding: 13px 16px;
+  border: 1px solid var(--gold); background: var(--gold-soft);
+  border-radius: 16px; font-size: 13.5px; color: #92400e;
+}
+.free-limit-card.hidden { display: none; }
+.free-limit-text b { font-weight: 600; }
+
+/* auth: link button + OTP step */
+.link-btn {
+  background: none; border: none; padding: 0; margin: 10px 0 0;
+  color: var(--accent); font-size: 13.5px; font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.link-btn:hover { color: var(--accent-2); }
+
+.otp-head { margin-bottom: 4px; }
+.otp-head h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.auth-resend { font-size: 13px; color: var(--muted); margin-top: 10px; text-align: center; }
+.auth-resend .link-btn { margin: 0; }
+
+/* upgrade modal */
+.upgrade-hero {
+  width: 54px; height: 54px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 18px; background: var(--gold-soft); color: #b45309;
+}
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 4px; }
+.plan-card {
+  border: 1px solid var(--border); border-radius: 16px; padding: 16px 14px;
+  text-align: left; background: var(--card-2);
+}
+.plan-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.plan-price { font-size: 22px; font-weight: 800; margin: 4px 0 10px; }
+.plan-price span { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.plan-card ul { list-style: none; display: grid; gap: 6px; padding: 0; margin: 0; }
+.plan-card li { font-size: 12.5px; color: var(--muted); display: flex; gap: 6px; line-height: 1.35; }
+.plan-card li .plan-check { color: var(--success); font-weight: 700; }
+.plan-card.premium {
+  border-color: var(--gold); background: var(--gold-soft);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.plan-card.premium h3, .plan-card.premium .plan-price { color: #b45309; }
+.plan-card.premium li { color: #7c4a03; }
+
+/* admin integrations: checkbox + textarea */
+.cfg-check { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cfg-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.cfg-field textarea {
+  width: 100%; padding: 10px 12px; font: inherit; font-size: 13px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--card); color: var(--text); resize: vertical;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+.cfg-field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }

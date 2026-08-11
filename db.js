@@ -49,7 +49,27 @@ CREATE TABLE IF NOT EXISTS users (
   google_id     TEXT,                          -- Google OAuth subject id (links a Google account)
   gems          INTEGER NOT NULL DEFAULT 0,    -- spendable in-app currency (store)
   xp_boost      INTEGER NOT NULL DEFAULT 0,    -- remaining questions with 2x XP (store item)
+  plan          TEXT NOT NULL DEFAULT 'free',   -- 'free' | 'premium' (subscription tier)
+  premium_until TEXT,                          -- subscription expiry (NULL = permanent/admin-granted)
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- One-time passcodes for email signup + password reset (OTP flow)
+CREATE TABLE IF NOT EXISTS otps (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  email      TEXT NOT NULL,
+  code       TEXT NOT NULL,
+  purpose    TEXT NOT NULL,                 -- 'signup' | 'reset'
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- AI tutor message log (used to enforce the free-tier daily tutor limit)
+CREATE TABLE IF NOT EXISTS tutor_log (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -230,6 +250,8 @@ async function migrateAndSeed(b) {
   await ensureColumn('users', 'google_id', 'google_id TEXT');
   await ensureColumn('users', 'gems', 'gems INTEGER NOT NULL DEFAULT 0');
   await ensureColumn('users', 'xp_boost', 'xp_boost INTEGER NOT NULL DEFAULT 0');
+  await ensureColumn('users', 'plan', "plan TEXT NOT NULL DEFAULT 'free'");
+  await ensureColumn('users', 'premium_until', 'premium_until TEXT');
 
   // Seed admin user (AUTHORITATIVE — always works): every server start
   // guarantees the admin account exists with EXACTLY this email + password.

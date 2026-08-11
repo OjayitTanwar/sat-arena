@@ -35,7 +35,8 @@ async function raw(path, opts = {}) {
 }
 
 async function main() {
-  const signup = await raw('/api/auth/signup', { method: 'POST', body: { username: 'roundtest', email: 'roundtest@test.com', password: 'secret123' } });
+  const otp = await raw('/api/auth/otp/request', { method: 'POST', body: { email: 'roundtest@test.com', purpose: 'signup' } });
+  const signup = await raw('/api/auth/signup', { method: 'POST', body: { username: 'roundtest', email: 'roundtest@test.com', password: 'secret123', otp: otp.data.dev } });
   const cookie = (signup.setCookie || '').split(';')[0];
   if (!cookie) throw new Error('no session cookie');
 

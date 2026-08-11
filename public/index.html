@@ -58,6 +58,7 @@
                 <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
               </span>
             </button>
+            <button type="button" class="link-btn" id="forgot-pw-btn">Forgot password?</button>
           </form>
 
           <div class="auth-divider"><span>or continue with</span></div>
@@ -67,30 +68,86 @@
           </button>
 
           <form id="form-signup" class="auth-form hidden">
-            <div class="field">
-              <label for="su-username">Username</label>
-              <input id="su-username" type="text" autocomplete="username" placeholder="future1600" minlength="3" maxlength="20" required />
+            <div id="signup-step1">
+              <div class="field">
+                <label for="su-username">Username</label>
+                <input id="su-username" type="text" autocomplete="username" placeholder="future1600" minlength="3" maxlength="20" required />
+              </div>
+              <div class="field">
+                <label for="su-email">Email</label>
+                <input id="su-email" type="email" autocomplete="email" placeholder="you@example.com" required />
+              </div>
+              <div class="field">
+                <label for="su-password">Password</label>
+                <div class="pw-wrap">
+                  <input id="su-password" type="password" autocomplete="new-password" placeholder="At least 6 characters" minlength="6" required />
+                  <button type="button" class="pw-toggle" id="su-pw-toggle" title="Show password" aria-label="Show password">
+                    <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="form-error" id="signup-error"></p>
+              <button type="submit" class="btn btn-primary" id="signup-submit-btn">
+                <span class="btn-label">Create account</span>
+                <span class="btn-spinner hidden">
+                  <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+                </span>
+              </button>
+            </div>
+            <div id="signup-step2" class="hidden">
+              <div class="otp-head">
+                <h3>Check your email</h3>
+                <p class="muted small" id="signup-otp-hint">We sent a 6-digit code to your inbox. Enter it below to finish creating your account.</p>
+              </div>
+              <div class="field">
+                <label for="su-otp">Verification code</label>
+                <input id="su-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required />
+              </div>
+              <p class="form-error" id="signup-otp-error"></p>
+              <button type="button" class="btn btn-primary" id="signup-verify-btn">
+                <span class="btn-label">Verify & create account</span>
+                <span class="btn-spinner hidden">
+                  <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+                </span>
+              </button>
+              <p class="auth-resend">Didn't get it? <button type="button" class="link-btn" id="signup-resend-btn">Resend code</button></p>
+              <button type="button" class="btn btn-ghost small-btn" id="signup-back-btn" style="width:100%;margin-top:6px">Use a different email</button>
+            </div>
+          </form>
+
+          <!-- Password reset (email → code → new password) -->
+          <form id="form-reset" class="auth-form hidden">
+            <div class="otp-head">
+              <h3>Reset your password</h3>
+              <p class="muted small">Enter the email on your account — we'll send a 6-digit code.</p>
             </div>
             <div class="field">
-              <label for="su-email">Email</label>
-              <input id="su-email" type="email" autocomplete="email" placeholder="you@example.com" required />
+              <label for="reset-email">Email</label>
+              <input id="reset-email" type="email" autocomplete="email" placeholder="you@example.com" required />
             </div>
-            <div class="field">
-              <label for="su-password">Password</label>
-              <div class="pw-wrap">
-                <input id="su-password" type="password" autocomplete="new-password" placeholder="At least 6 characters" minlength="6" required />
-                <button type="button" class="pw-toggle" id="su-pw-toggle" title="Show password" aria-label="Show password">
-                  <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
+            <div id="reset-otp-wrap" class="hidden">
+              <div class="field">
+                <label for="reset-otp">Verification code</label>
+                <input id="reset-otp" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" required />
+              </div>
+              <div class="field">
+                <label for="reset-password">New password</label>
+                <div class="pw-wrap">
+                  <input id="reset-password" type="password" autocomplete="new-password" placeholder="At least 6 characters" minlength="6" required />
+                  <button type="button" class="pw-toggle" id="reset-pw-toggle" title="Show password" aria-label="Show password">
+                    <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
-            <p class="form-error" id="signup-error"></p>
-            <button type="submit" class="btn btn-primary" id="signup-submit-btn">
-              <span class="btn-label">Create account</span>
+            <p class="form-error" id="reset-error"></p>
+            <button type="submit" class="btn btn-primary" id="reset-submit-btn">
+              <span class="btn-label" id="reset-submit-label">Send code</span>
               <span class="btn-spinner hidden">
                 <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
               </span>
             </button>
+            <button type="button" class="btn btn-ghost small-btn" id="reset-back-btn" style="width:100%;margin-top:8px">Back to log in</button>
           </form>
         </div>
         <p class="auth-footnote">Your progress and XP are saved to your account.</p>
@@ -115,6 +172,10 @@
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
           <b id="top-gems">0</b>
         </div>
+        <button class="premium-badge hidden" id="top-premium-badge" title="You're on Premium — unlimited practice" data-view="store">
+          <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg>
+          Premium
+        </button>
         <div class="counter hidden" id="top-hearts" title="Lives this round">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
           <b id="top-hearts-num">3</b>
@@ -180,6 +241,7 @@
         </header>
 
         <button class="btn btn-primary" id="dash-continue-btn" style="margin-bottom:16px">Continue practicing</button>
+        <div class="ad-slot hidden" id="ad-slot-dashboard"></div>
 
         <div class="skeleton-row hidden" id="dash-skeleton" style="margin-bottom:16px">
           <div class="skeleton skeleton-block"></div>
@@ -293,6 +355,11 @@
             </div>
           </header>
           <p class="muted small adaptive-note">Adaptive difficulty is always on — each question is tuned to your live skill rating, and your per-topic proficiency updates as you answer.</p>
+          <div class="free-limit-card hidden" id="free-limit-card">
+            <div class="free-limit-text" id="free-limit-text"></div>
+            <button class="btn btn-ghost small-btn" id="free-limit-upgrade">Go premium</button>
+          </div>
+          <div class="ad-slot hidden" id="ad-slot-practice"></div>
 
           <!-- Duolingo-style vertical lesson path (rendered from proficiency data) -->
           <h3 class="drill-title">Lessons</h3>
@@ -397,6 +464,7 @@
               <h1 class="view-title">Full practice test</h1>
             </div>
           </header>
+          <div class="ad-slot hidden" id="ad-slot-test"></div>
           <div class="card test-intro-card">
             <h3>What you'll get</h3>
             <ul class="test-facts">
@@ -569,6 +637,7 @@
             <p class="eyebrow">Free AI study partner</p>
             <h1 class="view-title">SAT Sage</h1>
             <p class="muted" id="tutor-status">Built-in tutor · no API key needed</p>
+            <p class="muted small hidden" id="tutor-limit-note">Free tier: 3 tutor messages a day. Premium chats freely.</p>
           </div>
           <button class="btn btn-ghost small-btn" id="tutor-ai-btn">
             <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -691,6 +760,7 @@
                     <th>Streak</th>
                     <th>Answers</th>
                     <th>Accuracy</th>
+                    <th>Plan</th>
                     <th>Role</th>
                     <th>Joined</th>
                     <th>Action</th>
@@ -759,6 +829,52 @@
             <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-ai-clear-btn">Clear saved AI keys</button>
           </div>
 
+          <div class="card cfg-card">
+            <div class="cfg-card-head">
+              <h3>
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22 6 12 13 2 6"/></svg>
+                Email (OTP & password reset)
+              </h3>
+              <span class="cfg-status off" id="cfg-email-status"><span class="dot"></span>Not configured</span>
+            </div>
+            <p class="cfg-desc">Add a Resend API key (free at resend.com, no card) so verification codes and password-reset emails actually send. Without it, codes are shown on screen in dev mode.</p>
+            <div class="cfg-field">
+              <label for="cfg-resend-key">Resend API key</label>
+              <input id="cfg-resend-key" type="password" autocomplete="off" placeholder="re_…" />
+              <span class="cfg-hint" id="cfg-resend-key-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-email-from">From address</label>
+              <input id="cfg-email-from" type="text" autocomplete="off" placeholder="SAT Arena &lt;onboarding@resend.dev&gt;" />
+              <span class="cfg-hint">Use onboarding@resend.dev for testing, or a verified domain in production.</span>
+            </div>
+            <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-email-clear-btn">Clear saved email settings</button>
+          </div>
+
+          <div class="card cfg-card">
+            <div class="cfg-card-head">
+              <h3>
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                Ads & premium pricing
+              </h3>
+              <span class="cfg-status off" id="cfg-ads-status"><span class="dot"></span>Off</span>
+            </div>
+            <p class="cfg-desc">Free users see ads (premium members never do). Paste your ad network snippet below — e.g. the banner code from Adsterra — and it renders in the dashboard, practice and test screens.</p>
+            <div class="cfg-field">
+              <label class="cfg-check"><input type="checkbox" id="cfg-ads-enabled" /> Enable ads for free users</label>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-ads-code">Ad snippet (full script + container)</label>
+              <textarea id="cfg-ads-code" rows="4" autocomplete="off" placeholder="&lt;script src=…&gt;&lt;/script&gt;&#10;&lt;div id=…&gt;&lt;/div&gt;"></textarea>
+              <span class="cfg-hint">Paste the complete banner/native ad code from your network.</span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-premium-price">Premium monthly price (USD cents)</label>
+              <input id="cfg-premium-price" type="number" min="1" max="999999" placeholder="999" />
+              <span class="cfg-hint">Used for the Stripe subscription when STRIPE_SECRET_KEY is set (999 = $9.99/month).</span>
+            </div>
+          </div>
+
           <div class="cfg-save">
             <p class="cfg-saved" id="cfg-saved-msg"></p>
             <button class="btn btn-primary" id="cfg-save-btn" style="width:auto;padding:0 34px">Save integrations</button>
@@ -815,6 +931,50 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- premium upgrade modal -->
+  <div class="modal hidden" id="upgrade-modal">
+    <div class="modal-backdrop" id="upgrade-backdrop"></div>
+    <div class="modal-card">
+      <div class="upgrade-hero">
+        <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg>
+      </div>
+      <h2>Go premium</h2>
+      <p class="muted small" id="upgrade-desc">Unlock unlimited practice, full-length tests, unlimited AI tutoring and deep topic analytics — ad-free.</p>
+      <div class="plan-grid">
+        <div class="plan-card free">
+          <h3>Free</h3>
+          <p class="plan-price">$0</p>
+          <ul>
+            <li><span class="plan-check muted">✓</span> 10 practice questions a day</li>
+            <li><span class="plan-check muted">✓</span> 3 tutor messages a day</li>
+            <li><span class="plan-check muted">✓</span> Streaks, XP and leaderboard</li>
+            <li><span class="plan-check muted">✓</span> Ad-supported</li>
+          </ul>
+        </div>
+        <div class="plan-card premium">
+          <h3>Premium</h3>
+          <p class="plan-price" id="upgrade-price">$9.99<span>/month</span></p>
+          <ul>
+            <li><span class="plan-check">✓</span> Unlimited practice</li>
+            <li><span class="plan-check">✓</span> Full-length practice tests</li>
+            <li><span class="plan-check">✓</span> Unlimited AI tutor</li>
+            <li><span class="plan-check">✓</span> Topic analytics, no ads</li>
+          </ul>
+        </div>
+      </div>
+      <p class="form-error" id="upgrade-error"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="upgrade-cancel">Maybe later</button>
+        <button type="button" class="btn btn-primary" id="upgrade-subscribe-btn">
+          <span class="btn-label">Subscribe</span>
+          <span class="btn-spinner hidden">
+            <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+          </span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- settings modal -->

@@ -50,6 +50,90 @@ const GEM_PACKS = [
 ];
 const XP_BOOST_AMOUNT = 10; // questions a boost covers
 
+// ── Subscription / free-tier limits ───────────────────────────────────────
+// Free accounts get a small daily taste; premium unlocks everything.
+const FREE_DAILY_QUESTIONS = 10;  // practice questions per day on the free tier
+const FREE_TUTOR_DAILY = 3;       // AI tutor messages per day on the free tier
+
+// Is this user on the premium tier? Admins always are. An admin grant sets
+// premium_until to NULL (permanent); paid subscriptions set a real expiry.
+function isPremium(user) {
+  if (!user) return false;
+  if (user.is_admin) return true;
+  if (user.plan !== 'premium') return false;
+  if (!user.premium_until) return true; // permanent (admin grant)
+  return user.premium_until > new Date().toISOString();
+}
+
+async function todayAnswerCount(userId) {
+  const r = await db.prepare("SELECT COUNT(*) as n FROM answers WHERE user_id = ? AND date(created_at) = date('now')").get(userId);
+  return r ? r.n : 0;
+}
+
+async function todayTutorCount(userId) {
+  const r = await db.prepare("SELECT COUNT(*) as n FROM tutor_log WHERE user_id = ? AND date(created_at) = date('now')").get(userId);
+  return r ? r.n : 0;
+}
+
+// ── OTP (email verification + password reset) ──────────────────────────────
+function generateOtp() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+// Send an email through Resend when a key is configured. Without a key the
+// app runs in DEV mode: the code is returned in the response so flows still
+// work locally (and the admin panel can add the key later).
+async function sendEmail(to, subject, html) {
+  const c = await getConfig();
+  if (!c.resendKey) return { sent: false, dev: true };
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + c.resendKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: c.emailFrom, to, subject, html }),
+    });
+    if (!res.ok) {
+      console.error('Resend error:', res.status, (await res.text()).slice(0, 200));
+      return { sent: false, dev: false };
+    }
+    return { sent: true, dev: false };
+  } catch (e) {
+    console.error('Email send failed:', e && e.message ? e.message : e);
+    return { sent: false, dev: false };
+  }
+}
+
+async function issueOtp(email, purpose) {
+  const code = generateOtp();
+  const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  // one live code per email+purpose: delete older rows first
+  await db.prepare('DELETE FROM otps WHERE email = ? AND purpose = ?').run(email, purpose);
+  await db.prepare('INSERT INTO otps (email, code, purpose, expires_at) VALUES (?, ?, ?, ?)').run(email, code, purpose, expires);
+  return code;
+}
+
+// Verify an OTP. On success the row is consumed (deleted). On failure the
+// attempt counter climbs and the code dies after 5 wrong tries.
+async function verifyOtp(email, purpose, code) {
+  const row = await db.prepare('SELECT * FROM otps WHERE email = ? AND purpose = ?').get(email, purpose);
+  if (!row) return { ok: false, error: 'No code was sent to that email. Request a new one.' };
+  if (row.expires_at < new Date().toISOString()) {
+    await db.prepare('DELETE FROM otps WHERE id = ?').run(row.id);
+    return { ok: false, error: 'That code expired. Request a new one.' };
+  }
+  if (row.attempts >= 5) {
+    await db.prepare('DELETE FROM otps WHERE id = ?').run(row.id);
+    return { ok: false, error: 'Too many wrong attempts. Request a new code.' };
+  }
+  const clean = String(code || '').trim();
+  if (clean !== row.code) {
+    await db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE id = ?').run(row.id);
+    return { ok: false, error: 'Incorrect code. Check it and try again.' };
+  }
+  await db.prepare('DELETE FROM otps WHERE id = ?').run(row.id);
+  return { ok: true };
+}
+
 async function getItemQty(userId, itemId) {
   const row = await db.prepare('SELECT qty FROM user_items WHERE user_id = ? AND item_id = ?').get(userId, itemId);
   return row ? row.qty : 0;
@@ -137,6 +221,9 @@ function publicUser(row) {
     is_admin: Boolean(row.is_admin),
     gems: row.gems || 0,
     xp_boost: row.xp_boost || 0,
+    plan: row.plan || 'free',
+    premium: isPremium(row),
+    premium_until: row.premium_until || null,
     created_at: row.created_at,
   };
 }
@@ -208,8 +295,10 @@ app.use((req, _res, next) => {
 
 // ── Auth routes ────────────────────────────────────────────────────────────
 
+// Email signup requires a one-time passcode (sent by /api/auth/otp/request
+// with purpose=signup) so accounts are only created from real inboxes.
 app.post('/api/auth/signup', async (req, res) => {
-  const { username, email, password } = req.body || {};
+  const { username, email, password, otp } = req.body || {};
   if (!validateUsername(username)) return res.status(400).json({ error: 'Username must be 3–20 characters (letters, numbers, underscore).' });
   if (!validateEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
   if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
@@ -217,12 +306,63 @@ app.post('/api/auth/signup', async (req, res) => {
   const exists = await db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
   if (exists) return res.status(409).json({ error: 'That username or email is already registered.' });
 
+  const v = await verifyOtp(String(email).toLowerCase(), 'signup', otp);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
   const info = await db.prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)')
     .run(username, email.toLowerCase(), hashPassword(password));
   await setSession(res, info.lastInsertRowid);
   const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   postToFormpost({ type: 'signup', username, email, time: new Date().toISOString() });
   res.json({ user: publicUser(row) });
+});
+
+// Request a one-time passcode: purpose=signup (new accounts) or purpose=reset
+// (existing accounts). When no email provider is configured the code comes
+// back as `dev` so local/testing flows still work.
+app.post('/api/auth/otp/request', async (req, res) => {
+  const { email, purpose } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!validateEmail(cleanEmail)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+  const purposeStr = purpose === 'reset' ? 'reset' : 'signup';
+
+  if (purposeStr === 'signup') {
+    const exists = await db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+    if (exists) return res.status(409).json({ error: 'That email is already registered. Log in instead.' });
+  } else {
+    // reset: stay silent about unknown emails (no account enumeration)
+    const exists = await db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+    if (!exists) return res.json({ ok: true, dev: null, silent: true });
+  }
+
+  const code = await issueOtp(cleanEmail, purposeStr);
+  const label = purposeStr === 'signup' ? 'create your SAT Arena account' : 'reset your SAT Arena password';
+  const mail = await sendEmail(
+    cleanEmail,
+    purposeStr === 'signup' ? 'Your SAT Arena verification code' : 'Reset your SAT Arena password',
+    `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto"><h2 style="color:#16a34a">SAT Arena</h2><p>Your code to ${label} is:</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px;margin:18px 0">${code}</p><p>It expires in 10 minutes. If you didn't ask for this, you can safely ignore this email.</p></div>`
+  );
+  // Dev mode: surface the code so signup/reset works before a provider is added.
+  res.json({ ok: true, dev: mail.dev ? code : null });
+});
+
+// Password reset: verify the emailed code, then set the new password and kill
+// every active session so the old password stops working everywhere.
+app.post('/api/auth/reset/confirm', async (req, res) => {
+  const { email, otp, password } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!validateEmail(cleanEmail)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+  if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+  const v = await verifyOtp(cleanEmail, 'reset', otp);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const user = await db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  if (!user) return res.status(400).json({ error: 'No account uses that email.' });
+
+  await db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), user.id);
+  await db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
+  postToFormpost({ type: 'password_reset', email: cleanEmail, time: new Date().toISOString() });
+  res.json({ ok: true });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -252,7 +392,21 @@ app.post('/api/auth/logout', authRequired, async (req, res) => {
 
 app.get('/api/me', async (req, res) => {
   const user = await getSessionUser(req);
-  res.json({ user: user ? publicUser(user) : null });
+  if (!user) return res.json({ user: null });
+  const c = await getConfig();
+  res.json({
+    user: publicUser(user),
+    plan: {
+      premium: isPremium(user),
+      plan: user.plan || 'free',
+      premium_until: user.premium_until || null,
+      dailyUsed: await todayAnswerCount(user.id),
+      dailyLimit: FREE_DAILY_QUESTIONS,
+      tutorUsed: await todayTutorCount(user.id),
+      tutorLimit: FREE_TUTOR_DAILY,
+    },
+    ads: isPremium(user) ? { enabled: false } : { enabled: c.adsEnabled, code: c.adsEnabled ? c.adsCode : '' },
+  });
 });
 
 // Current public tunnel URL (used by the local watchdog so you can always find
@@ -277,6 +431,17 @@ app.get('/api/live-url', (_req, res) => {
 // ?adaptive=1 uses the user's server-tracked adaptive difficulty; otherwise
 // ?difficulty=1|2|3 forces a level explicitly.
 app.get('/api/question', authRequired, async (req, res) => {
+  // Free tier gets a daily question budget; premium is unlimited.
+  if (!isPremium(req.user)) {
+    const used = await todayAnswerCount(req.user.id);
+    if (used >= FREE_DAILY_QUESTIONS) {
+      return res.status(402).json({
+        error: `You've used your ${FREE_DAILY_QUESTIONS} free questions today — go premium for unlimited practice.`,
+        upgrade: true, code: 'daily_limit',
+        plan: { dailyUsed: used, dailyLimit: FREE_DAILY_QUESTIONS },
+      });
+    }
+  }
   const section = req.query.section; // 'math' | 'reading' | undefined (mixed)
   const topic = req.query.topic;
   const count = Math.min(parseInt(req.query.count, 10) || 1, 5);
@@ -514,13 +679,17 @@ const TEST_MODULE_ORDER = ['rw1', 'rw2', 'math1', 'math2'];
 
 // Start the test: generate both Module 1s up front. All 4 modules share one
 // `seen` set so the whole test contains 108 unique questions (real-SAT style).
-app.post('/api/practice-test/start', authRequired, (_req, res) => {
+app.post('/api/practice-test/start', authRequired, async (req, res) => {
+  // Full-length practice tests are a premium feature.
+  if (!isPremium(req.user)) {
+    return res.status(402).json({ error: 'Full practice tests are for premium members. Upgrade to unlock.', upgrade: true, code: 'premium' });
+  }
   const token = crypto.randomBytes(8).toString('hex');
   const seen = new Set();
   const rw1 = generateTestModule('reading', { key: 'rw1', name: 'Reading & Writing · Module 1', seen });
   const math1 = generateTestModule('math', { key: 'math1', name: 'Math · Module 1', seen });
   for (const m of [rw1, math1]) for (const q of m.questions) cacheQuestion(q);
-  const session = { token, userId: _req.user.id, startedAt: Date.now(), modules: { rw1, math1 }, levels: {}, seen };
+  const session = { token, userId: req.user.id, startedAt: Date.now(), modules: { rw1, math1 }, levels: {}, seen };
   testSessions.set(token, session);
   if (testSessions.size > TEST_MAX) testSessions.delete(testSessions.keys().next().value);
   res.json({ token, modules: [testModulePayload(rw1), testModulePayload(math1)] });
@@ -632,6 +801,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
 app.get('/api/dashboard', authRequired, async (req, res) => {
   const user = req.user;
+  const cfg = await getConfig();
   const stats = await db.prepare(`
     SELECT COUNT(*) as total, SUM(correct) as correct, SUM(xp_earned) as xp
     FROM answers WHERE user_id = ?
@@ -725,6 +895,16 @@ app.get('/api/dashboard', authRequired, async (req, res) => {
     testHistory,
     tutor: await tutorStatus({ geminiKey: user.gemini_key }),
     store: { gems: user.gems || 0, xpBoost: user.xp_boost || 0, items, free: Boolean(user.is_admin) },
+    plan: {
+      premium: isPremium(user),
+      plan: user.plan || 'free',
+      premium_until: user.premium_until || null,
+      dailyUsed: answeredToday,
+      dailyLimit: FREE_DAILY_QUESTIONS,
+      tutorUsed: await todayTutorCount(user.id),
+      tutorLimit: FREE_TUTOR_DAILY,
+    },
+    ads: isPremium(user) ? { enabled: false } : { enabled: cfg.adsEnabled, code: cfg.adsEnabled ? cfg.adsCode : '' },
   });
 });
 
@@ -732,6 +912,10 @@ app.get('/api/dashboard', authRequired, async (req, res) => {
 
 // Accuracy + proficiency per topic; returns weakest topics first (n >= 2 attempts)
 app.get('/api/topics', authRequired, async (req, res) => {
+  // Deep topic analytics is a premium feature.
+  if (!isPremium(req.user)) {
+    return res.status(402).json({ error: 'Topic analytics is a premium feature. Upgrade to unlock.', upgrade: true, code: 'premium' });
+  }
   const rows = await db.prepare(`
     SELECT a.topic, a.section,
            COUNT(*) as n, SUM(a.correct) as correct,
@@ -823,10 +1007,22 @@ app.post('/api/settings', authRequired, async (req, res) => {
 app.post('/api/tutor', authRequired, async (req, res) => {
   const { message, history } = req.body || {};
   if (!message || !message.trim()) return res.status(400).json({ error: 'Empty message.' });
+  // Free tier gets a few tutor messages a day; premium chats freely.
+  if (!isPremium(req.user)) {
+    const used = await todayTutorCount(req.user.id);
+    if (used >= FREE_TUTOR_DAILY) {
+      return res.status(402).json({
+        error: `You've used your ${FREE_TUTOR_DAILY} free tutor messages today — go premium for unlimited tutoring.`,
+        upgrade: true, code: 'tutor_limit',
+        plan: { tutorUsed: used, tutorLimit: FREE_TUTOR_DAILY },
+      });
+    }
+  }
   try {
     const result = await tutorReply(message.slice(0, 2000), Array.isArray(history) ? history : [], {
       geminiKey: req.user.gemini_key,
     });
+    await db.prepare('INSERT INTO tutor_log (user_id) VALUES (?)').run(req.user.id);
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: 'Tutor unavailable right now. Try again.' });
@@ -1123,13 +1319,107 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 });
 
+// ── Subscriptions (premium tier) ───────────────────────────────────────────
+// Premium unlocks unlimited practice, full practice tests, unlimited tutor
+// and topic analytics. Payments go through Stripe Checkout when
+// STRIPE_SECRET_KEY is configured; otherwise the admin grants premium for
+// free from the admin panel.
+app.get('/api/subscription', authRequired, async (req, res) => {
+  const c = await getConfig();
+  res.json({
+    premium: isPremium(req.user),
+    plan: req.user.plan || 'free',
+    premium_until: req.user.premium_until || null,
+    priceCents: c.premiumPriceCents,
+    paymentsConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+    dailyUsed: await todayAnswerCount(req.user.id),
+    dailyLimit: FREE_DAILY_QUESTIONS,
+    tutorUsed: await todayTutorCount(req.user.id),
+    tutorLimit: FREE_TUTOR_DAILY,
+  });
+});
+
+app.post('/api/subscribe', authRequired, async (req, res) => {
+  if (isPremium(req.user)) {
+    return res.json({ ok: true, already: true, premium: true });
+  }
+  const c = await getConfig();
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    return res.status(503).json({ error: 'Payments are not configured yet — ask the admin for a premium grant.', upgrade: true });
+  }
+  const base = c.appUrl || `${req.protocol}://${req.get('host')}`;
+  try {
+    const sessionRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        mode: 'subscription',
+        'line_items[0][price_data][currency]': 'usd',
+        'line_items[0][price_data][product_data][name]': 'SAT Arena Premium',
+        'line_items[0][price_data][unit_amount]': String(c.premiumPriceCents),
+        'line_items[0][price_data][recurring][interval]': 'month',
+        'line_items[0][quantity]': '1',
+        success_url: `${base}/api/subscription/confirm?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${base}/#/store`,
+        client_reference_id: String(req.user.id),
+        metadata: { plan: 'premium' },
+      }),
+    });
+    const data = await sessionRes.json();
+    if (!sessionRes.ok || !data.url) {
+      console.error('Stripe subscribe error:', data);
+      return res.status(502).json({ error: 'Could not start checkout.' });
+    }
+    await db.prepare('INSERT INTO store_orders (user_id, plan, gems, amount_cents, status, provider, provider_ref) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(req.user.id, 'premium', 0, c.premiumPriceCents, 'pending', 'stripe', data.id);
+    res.json({ ok: true, url: data.url });
+  } catch (e) {
+    console.error('Stripe subscribe error:', e);
+    res.status(502).json({ error: 'Could not start checkout.' });
+  }
+});
+
+// Stripe subscription success — grants premium for 30 days (idempotent).
+app.get('/api/subscription/confirm', authRequired, async (req, res) => {
+  const key = process.env.STRIPE_SECRET_KEY;
+  const sessionId = String(req.query.session_id || '');
+  if (!key || !sessionId) return res.redirect('/#/store?upgraded=error');
+  try {
+    const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+      headers: { Authorization: 'Bearer ' + key },
+    });
+    const s = await r.json();
+    if (s.payment_status !== 'paid') return res.redirect('/#/store?upgraded=error');
+    const order = await db.prepare("SELECT user_id, plan FROM store_orders WHERE provider_ref = ? AND status = 'pending'").get(sessionId);
+    if (order && Number(order.user_id) === req.user.id) {
+      const claimed = await db.prepare("UPDATE store_orders SET status = 'paid' WHERE provider_ref = ? AND status = 'pending'").run(sessionId);
+      if (claimed.changes === 1) {
+        const until = new Date(Date.now() + 30 * 864e5).toISOString();
+        await db.prepare('UPDATE users SET plan = ?, premium_until = ? WHERE id = ?').run('premium', until, req.user.id);
+      }
+    }
+    return res.redirect('/#/store?upgraded=1');
+  } catch (e) {
+    console.error('Stripe confirm error:', e);
+    res.redirect('/#/store?upgraded=error');
+  }
+});
+
+app.post('/api/subscription/cancel', authRequired, async (req, res) => {
+  // Admins keep premium forever; everyone else returns to the free tier.
+  if (req.user.is_admin) return res.json({ ok: true, premium: true });
+  await db.prepare('UPDATE users SET plan = ?, premium_until = NULL WHERE id = ?').run('free', req.user.id);
+  res.json({ ok: true, premium: false });
+});
+
 // ── Admin API routes ───────────────────────────────────────────────────────
 // All admin routes require is_admin = 1
 
 app.get('/api/admin/users', adminRequired, async (req, res) => {
   const users = await db.prepare(`
     SELECT u.id, u.username, u.email, u.xp, u.level, u.streak, u.best_streak,
-           u.is_admin, u.created_at, u.last_active,
+           u.is_admin, u.plan, u.premium_until, u.created_at, u.last_active,
            (SELECT COUNT(*) FROM answers a WHERE a.user_id = u.id) as total_answers,
            (SELECT SUM(correct) FROM answers a WHERE a.user_id = u.id) as correct_answers,
            (SELECT COUNT(*) FROM badges b WHERE b.user_id = u.id) as badges_count
@@ -1186,6 +1476,21 @@ app.get('/api/admin/store', adminRequired, async (req, res) => {
   res.json({ ledger, orders, balances });
 });
 
+// Admin: grant or revoke the premium plan for any user (no payment needed).
+app.post('/api/admin/plan', adminRequired, async (req, res) => {
+  const { userId, plan } = req.body || {};
+  const uid = parseInt(userId, 10);
+  if (!uid) return res.status(400).json({ error: 'Invalid user id.' });
+  const target = await db.prepare('SELECT id, username FROM users WHERE id = ?').get(uid);
+  if (!target) return res.status(404).json({ error: 'User not found.' });
+  const p = plan === 'premium' ? 'premium' : plan === 'free' ? 'free' : null;
+  if (!p) return res.status(400).json({ error: 'Plan must be premium or free.' });
+  await db.prepare('UPDATE users SET plan = ?, premium_until = NULL WHERE id = ?').run(p, uid);
+  await db.prepare('INSERT INTO admin_log (admin_id, action, detail) VALUES (?, ?, ?)')
+    .run(req.user.id, 'set_plan', `${p} for ${target.username}`);
+  res.json({ ok: true, plan: p });
+});
+
 app.post('/api/admin/grant-gems', adminRequired, async (req, res) => {
   const { userId, amount, reason } = req.body || {};
   const uid = parseInt(userId, 10);
@@ -1212,18 +1517,26 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       gemini_api_key: maskSecret(c.geminiKey),
       groq_api_key: maskSecret(c.groqKey),
       groq_model: c.groqModel,
+      resend_api_key: maskSecret(c.resendKey),
+      email_from: c.emailFrom,
+      ads_enabled: c.adsEnabled ? '1' : '',
+      ads_code: c.adsEnabled ? c.adsCode : '',
+      premium_price_cents: String(c.premiumPriceCents),
     },
     status: {
       google: Boolean(c.googleClientId && c.googleClientSecret),
       gemini: Boolean(c.geminiKey),
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
+      email: Boolean(c.resendKey),
+      ads: c.adsEnabled && Boolean(c.adsCode),
+      payments: Boolean(process.env.STRIPE_SECRET_KEY),
     },
   });
 });
 
 app.post('/api/admin/config', adminRequired, async (req, res) => {
-  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model'];
+  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'ads_enabled', 'ads_code', 'premium_price_cents'];
 
   // Empty fields and masked values ('•••') are treated as "keep current" so
   // a save that leaves a secret untouched can never overwrite it with the
@@ -1259,12 +1572,20 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       gemini_api_key: maskSecret(c.geminiKey),
       groq_api_key: maskSecret(c.groqKey),
       groq_model: c.groqModel,
+      resend_api_key: maskSecret(c.resendKey),
+      email_from: c.emailFrom,
+      ads_enabled: c.adsEnabled ? '1' : '',
+      ads_code: c.adsEnabled ? c.adsCode : '',
+      premium_price_cents: String(c.premiumPriceCents),
     },
     status: {
       google: Boolean(c.googleClientId && c.googleClientSecret),
       gemini: Boolean(c.geminiKey),
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
+      email: Boolean(c.resendKey),
+      ads: c.adsEnabled && Boolean(c.adsCode),
+      payments: Boolean(process.env.STRIPE_SECRET_KEY),
     },
   });
 });
