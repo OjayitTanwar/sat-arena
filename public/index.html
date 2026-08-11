@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAT Arena — Gamified SAT Prep</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2316a34a'/%3E%3Cpath d='M16 8l9 4.5-9 4.5-9-4.5L16 8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 14.5V19c0 1.7 3.1 3 7 3s7-1.3 7-3v-4.5' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ============ AUTH VIEW ============ -->
+  <section id="view-auth" class="view">
+    <div class="auth-layout">
+      <div class="auth-hero">
+        <div class="brand-badge">
+          <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
+        </div>
+        <div class="auth-mascot" id="auth-mascot" title="Your study buddy"></div>
+        <h1 class="auth-title">SAT <span>Arena</span></h1>
+        <p class="auth-tagline">Train like it's game day. Questions generated live, scored instantly, with a free AI tutor in your corner.</p>
+        <ul class="auth-features">
+          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Fresh SAT-style questions on every attempt</li>
+          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span> XP, levels, streaks and badges</li>
+          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span> Free built-in AI tutor, no API key needed</li>
+          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Track accuracy and weekly progress</li>
+        </ul>
+        <div class="auth-quote">
+          <blockquote>A 100-point score jump comes from consistency, not cramming.</blockquote>
+        </div>
+      </div>
+
+      <div class="auth-card-wrap">
+        <div class="auth-card">
+          <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="login">Log in</button>
+            <button class="auth-tab" data-tab="signup">Sign up</button>
+          </div>
+
+          <form id="form-login" class="auth-form">
+            <div class="field">
+              <label for="login-identifier">Username or email</label>
+              <input id="login-identifier" type="text" autocomplete="username" placeholder="you@example.com" required />
+            </div>
+            <div class="field">
+              <label for="login-password">Password</label>
+              <div class="pw-wrap">
+                <input id="login-password" type="password" autocomplete="current-password" placeholder="Your password" required />
+                <button type="button" class="pw-toggle" id="login-pw-toggle" title="Show password" aria-label="Show password">
+                  <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <p class="form-error" id="login-error"></p>
+            <button type="submit" class="btn btn-primary" id="login-submit-btn">
+              <span class="btn-label">Log in</span>
+              <span class="btn-spinner hidden">
+                <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+              </span>
+            </button>
+          </form>
+
+          <div class="auth-divider"><span>or continue with</span></div>
+          <button class="btn btn-social" id="google-login-btn" title="Sign in with Google">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0"/></svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <form id="form-signup" class="auth-form hidden">
+            <div class="field">
+              <label for="su-username">Username</label>
+              <input id="su-username" type="text" autocomplete="username" placeholder="future1600" minlength="3" maxlength="20" required />
+            </div>
+            <div class="field">
+              <label for="su-email">Email</label>
+              <input id="su-email" type="email" autocomplete="email" placeholder="you@example.com" required />
+            </div>
+            <div class="field">
+              <label for="su-password">Password</label>
+              <div class="pw-wrap">
+                <input id="su-password" type="password" autocomplete="new-password" placeholder="At least 6 characters" minlength="6" required />
+                <button type="button" class="pw-toggle" id="su-pw-toggle" title="Show password" aria-label="Show password">
+                  <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <p class="form-error" id="signup-error"></p>
+            <button type="submit" class="btn btn-primary" id="signup-submit-btn">
+              <span class="btn-label">Create account</span>
+              <span class="btn-spinner hidden">
+                <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+              </span>
+            </button>
+          </form>
+        </div>
+        <p class="auth-footnote">Your progress and XP are saved to your account.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ APP SHELL ============ -->
+  <div id="app" class="app hidden">
+    <!-- top bar: streak + gems -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
+        <span>SAT Arena</span>
+      </div>
+      <div class="topbar-right">
+        <div class="counter" title="Daily practice streak">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3 1.07-1.06 2.78-3.5 2.78-5.5 0-1.38-.5-2-1-3C13 2 14 4 14 6.5 14 8.5 12.5 10 12 12c.5-1 1-2 1-3.5 1.07 1.06 2 2.5 2 4.5 0 2.76-2.24 5-5 5s-5-2.24-5-5c0-1.5.5-2.5 1-3 .5 1 1 2 1 3 0 .75-.25 1.5-.5 2z"/></svg>
+          <b id="top-streak">0</b>
+        </div>
+        <div class="counter" id="top-gems-counter" title="Gems — spend them in the store">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
+          <b id="top-gems">0</b>
+        </div>
+        <div class="counter hidden" id="top-hearts" title="Lives this round">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+          <b id="top-hearts-num">3</b>
+        </div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="side-brand">
+        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <span class="side-brand-name">SAT <em>Arena</em></span>
+      </div>
+      <nav class="side-nav">
+        <button class="nav-item" data-view="dashboard"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg></span><span>Home</span></button>
+        <button class="nav-item" data-view="practice"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span><span>Practice</span></button>
+        <button class="nav-item" data-view="test"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span>Full test</span></button>
+        <button class="nav-item" data-view="leaderboard"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span><span>Leaderboard</span></button>
+        <button class="nav-item" data-view="store"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg></span><span>Store</span></button>
+        <button class="nav-item" data-view="tutor"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span>Tutor</span></button>
+        <button class="nav-item hidden" id="nav-admin" data-view="admin"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span><span>Admin</span></button>
+      </nav>
+      <div class="side-preferences">
+        <button class="pref-btn" id="theme-btn" title="Toggle light/dark theme"></button>
+        <button class="pref-btn" id="sound-btn" title="Toggle sound effects"></button>
+      </div>
+      <div class="side-profile">
+        <div class="avatar" id="side-avatar">?</div>
+        <div class="side-profile-info">
+          <div class="side-name" id="side-name">…</div>
+          <div class="side-level" id="side-level">Level 1</div>
+        </div>
+        <button class="icon-btn" id="logout-btn" title="Log out">
+          <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- ============ DASHBOARD ============ -->
+      <section id="view-dashboard" class="view app-view">
+        <header class="view-head">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div>
+              <p class="eyebrow" id="dash-greeting">Welcome back</p>
+              <h1 class="view-title" id="dash-title">…</h1>
+            </div>
+            <div class="dash-mascot" id="dash-mascot" title="Your study buddy"></div>
+          </div>
+          <div class="head-stats">
+            <div class="pill stat-pill" id="dash-countdown" title="Days until your test">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <b>—</b>
+            </div>
+            <div class="pill stat-pill" id="dash-streak" title="Daily practice streak">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3 1.07-1.06 2.78-3.5 2.78-5.5 0-1.38-.5-2-1-3C13 2 14 4 14 6.5 14 8.5 12.5 10 12 12c.5-1 1-2 1-3.5 1.07 1.06 2 2.5 2 4.5 0 2.76-2.24 5-5 5s-5-2.24-5-5c0-1.5.5-2.5 1-3 .5 1 1 2 1 3 0 .75-.25 1.5-.5 2z"/></svg>
+              <b>0</b>
+            </div>
+            <div class="pill stat-pill" id="dash-xp" title="Total XP">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
+              <b>0</b> XP
+            </div>
+          </div>
+        </header>
+
+        <button class="btn btn-primary" id="dash-continue-btn" style="margin-bottom:16px">Continue practicing</button>
+
+        <div class="skeleton-row hidden" id="dash-skeleton" style="margin-bottom:16px">
+          <div class="skeleton skeleton-block"></div>
+          <div class="skeleton skeleton-block"></div>
+          <div class="skeleton skeleton-line" style="width:60%"></div>
+          <div class="skeleton skeleton-line" style="width:40%"></div>
+        </div>
+
+        <div class="card countdown-card hidden" id="countdown-card">
+          <div class="countdown-big" id="countdown-big">—</div>
+          <div class="countdown-meta">
+            <h3 id="countdown-title">Your SAT is coming up</h3>
+            <p class="muted small" id="countdown-sub">Set a target date in settings.</p>
+            <div class="goal-bar">
+              <div class="goal-progress" id="goal-progress" style="width:0%"></div>
+            </div>
+            <p class="muted small" id="goal-text">0 of 10 questions today</p>
+            <button class="btn btn-ghost small-btn" id="open-settings-btn">
+              <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              Exam settings
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card level-card">
+            <div class="level-ring" id="level-ring">
+              <div class="level-ring-inner">
+                <span class="level-num" id="dash-level">1</span>
+                <span class="level-label" id="dash-level-label">Level 1</span>
+              </div>
+            </div>
+            <div class="level-info">
+              <h3 id="dash-level-title">Level 1</h3>
+              <p id="dash-xp-progress" class="muted">0 XP earned</p>
+              <div class="progress"><div class="progress-fill" id="dash-xp-bar" style="width:0%"></div></div>
+              <p class="muted small" id="dash-next-level">Next level in 100 XP</p>
+            </div>
+          </div>
+
+          <div class="card stat-card">
+            <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+            <div class="stat-num" id="stat-answered">0</div>
+            <div class="stat-label">Questions answered</div>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
+            <div class="stat-num" id="stat-accuracy">0%</div>
+            <div class="stat-label">Accuracy</div>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3 1.07-1.06 2.78-3.5 2.78-5.5 0-1.38-.5-2-1-3C13 2 14 4 14 6.5 14 8.5 12.5 10 12 12c.5-1 1-2 1-3.5 1.07 1.06 2 2.5 2 4.5 0 2.76-2.24 5-5 5s-5-2.24-5-5c0-1.5.5-2.5 1-3 .5 1 1 2 1 3 0 .75-.25 1.5-.5 2z"/></svg></span>
+            <div class="stat-num" id="stat-best">0</div>
+            <div class="stat-label">Best streak</div>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>
+            <div class="stat-num" id="stat-math">0</div>
+            <div class="stat-label">Math solved</div>
+          </div>
+        </div>
+
+        <div class="card quests-card" style="margin-bottom:12px">
+          <h3 class="card-title">Today's quests <span class="muted small">fresh every day</span></h3>
+          <div class="quests-grid" id="quests-grid"></div>
+        </div>
+
+        <div class="dash-row">
+          <div class="card weekly-card">
+            <h3 class="card-title">Last 7 days</h3>
+            <div class="bars" id="weekly-bars"></div>
+          </div>
+          <div class="card tutor-card">
+            <h3 class="card-title">AI Tutor</h3>
+            <p class="muted" id="dash-tutor-status">Built-in SAT Sage, free and ready.</p>
+            <button class="btn btn-ghost" data-view="tutor" style="margin-top:6px">Ask your tutor</button>
+          </div>
+        </div>
+
+        <div class="dash-row">
+          <div class="card weak-card">
+            <h3 class="card-title">Weak spots <span class="muted small">accuracy under 60%</span></h3>
+            <div id="weak-topics"><p class="muted small">Answer 2+ questions in a topic to see your weak spots here.</p></div>
+          </div>
+          <div class="card tests-card">
+            <h3 class="card-title">Recent practice tests</h3>
+            <div id="test-history"><p class="muted small">No full tests yet — try one</p></div>
+          </div>
+        </div>
+
+        <div class="card prof-card" style="margin-bottom:12px">
+          <h3 class="card-title">Topic proficiency <span class="muted small">Mastered, Advanced, Proficient, Developing</span></h3>
+          <p class="muted small" id="dash-adaptive">Adaptive level: 2 · skill rating 50 of 100 — questions adjust after every answer.</p>
+          <div class="proficiency-grid" id="proficiency-list"><p class="muted small">Answer questions to build your per-topic proficiency ratings.</p></div>
+        </div>
+
+        <div class="card badges-card" style="margin-bottom:12px">
+          <h3 class="card-title">Badges <span class="badge-count" id="badge-count">0 / 13</span></h3>
+          <div class="badges-grid" id="badges-grid"></div>
+        </div>
+        <button class="btn btn-ghost settings-foot-btn" id="open-settings-btn-2">Set exam date and daily goal</button>
+      </section>
+
+      <!-- ============ PRACTICE ============ -->
+      <section id="view-practice" class="view app-view">
+        <div id="practice-menu">
+          <header class="view-head">
+            <div>
+              <p class="eyebrow">Practice</p>
+              <h1 class="view-title">Your path</h1>
+            </div>
+          </header>
+          <p class="muted small adaptive-note">Adaptive difficulty is always on — each question is tuned to your live skill rating, and your per-topic proficiency updates as you answer.</p>
+
+          <!-- Duolingo-style vertical lesson path (rendered from proficiency data) -->
+          <h3 class="drill-title">Lessons</h3>
+          <div class="lesson-path" id="lesson-path"><p class="muted small">Loading your path…</p></div>
+
+          <h3 class="drill-title">Quick practice</h3>
+          <div class="modes-grid">
+            <button class="mode-card" data-mode="quick">
+              <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+              <span><h3>Quick fire</h3><p>10 mixed questions, best for a fast warm-up.</p></span>
+              <span class="mode-meta">Mixed<span class="xp-hint">+120 XP</span></span>
+            </button>
+            <button class="mode-card" data-mode="math">
+              <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>
+              <span><h3>Math arena</h3><p>10 math questions — algebra, geometry, data.</p></span>
+              <span class="mode-meta">Math<span class="xp-hint">+140 XP</span></span>
+            </button>
+            <button class="mode-card" data-mode="reading">
+              <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+              <span><h3>Reading blitz</h3><p>10 reading and writing questions.</p></span>
+              <span class="mode-meta">Reading<span class="xp-hint">+140 XP</span></span>
+            </button>
+            <button class="mode-card" data-mode="challenge">
+              <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span>
+              <span><h3>Timed challenge</h3><p>5 questions, 45 seconds each, speed bonus.</p></span>
+              <span class="mode-meta">Timed<span class="xp-hint">+90 XP</span></span>
+            </button>
+          </div>
+
+          <h3 class="drill-title">Targeted drill</h3>
+          <p class="muted small">Pick a topic you keep missing and grind it. Proficiency is shown per topic.</p>
+          <div class="drill-picker">
+            <select id="drill-topic" class="drill-select">
+              <option value="">Choose a topic…</option>
+            </select>
+            <button class="btn btn-ghost" id="drill-start-btn">Start drill</button>
+          </div>
+        </div>
+
+        <!-- active game -->
+        <div id="practice-game" class="hidden">
+          <header class="game-head">
+            <div class="game-progress-wrap">
+              <span class="game-label" id="game-label">Question 1 of 10</span>
+              <div class="progress slim"><div class="progress-fill" id="game-progress" style="width:10%"></div></div>
+            </div>
+            <div class="game-hud">
+              <div class="lives" id="game-lives"></div>
+              <div class="combo" id="game-combo">×1</div>
+            </div>
+          </header>
+
+          <div class="timer-bar" id="timer-bar" style="display:none">
+            <div class="timer-fill" id="timer-fill"></div>
+          </div>
+
+          <div class="mascot-row">
+            <div class="mascot" id="game-mascot" title="Your study buddy"></div>
+            <span class="mascot-msg" id="mascot-msg">You've got this</span>
+          </div>
+
+          <div class="card question-card" id="question-card">
+            <div class="q-meta">
+              <span class="tag" id="q-section">Math</span>
+              <span class="tag alt" id="q-topic">algebra</span>
+              <button class="calc-btn hidden" id="calc-btn" title="Toggle the Desmos graphing calculator">
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                Calculator
+              </button>
+              <button class="calc-btn hidden" id="hint-btn" title="50/50 — remove two wrong answers">
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+                Hint
+              </button>
+              <span class="tag adaptive-tag" id="q-adaptive" title="Adaptive difficulty level">Adaptive</span>
+              <span class="q-difficulty" id="q-difficulty">★★☆</span>
+            </div>
+            <div class="q-text" id="q-text">Loading…</div>
+            <div class="choices" id="q-choices"></div>
+            <div class="calc-panel hidden" id="calc-panel">
+              <div class="calc-embed" id="calc-embed"></div>
+            </div>
+          </div>
+
+          <div class="card feedback hidden" id="feedback">
+            <div class="fb-head" id="fb-head"></div>
+            <p class="fb-expl" id="fb-expl"></p>
+            <div class="fb-prog" id="fb-prog"></div>
+            <div class="fb-actions">
+              <button class="btn btn-ghost hidden" id="refill-btn">Refill hearts</button>
+              <button class="btn btn-primary" id="next-btn">Next question</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FULL TEST ============ -->
+      <section id="view-test" class="view app-view">
+        <div id="test-intro">
+          <header class="view-head">
+            <div>
+              <p class="eyebrow">Simulated digital SAT</p>
+              <h1 class="view-title">Full practice test</h1>
+            </div>
+          </header>
+          <div class="card test-intro-card">
+            <h3>What you'll get</h3>
+            <ul class="test-facts">
+              <li><b>Full digital-SAT length</b> — 4 modules, 108 questions, about 2h15m</li>
+              <li><b>Real timing</b> — Reading and Writing modules 32 min each, Math modules 35 min each</li>
+              <li><b>Adaptive module 2</b> — each section's module 2 adjusts to your module 1 performance, just like the real test</li>
+              <li><b>Desmos built-in</b> — the graphing calculator the real SAT uses is available in every Math module</li>
+              <li><b>Scaled score</b> — results mapped to the 400–1600 scale with a letter grade</li>
+              <li><b>No lives, no XP pressure</b> — pure practice, like test day</li>
+            </ul>
+            <div class="test-tips">
+              <p class="muted small">Tip: find a quiet space, put your phone away, and don't pause mid-module. You can use the calculator button in Math modules.</p>
+            </div>
+            <button class="btn btn-primary" id="start-test-btn">Start my practice test</button>
+          </div>
+        </div>
+
+        <div id="test-active" class="hidden">
+          <header class="game-head">
+            <div class="game-progress-wrap">
+              <span class="game-label" id="test-module-label">Module 1 of 4</span>
+              <div class="progress slim"><div class="progress-fill" id="test-module-progress" style="width:0%"></div></div>
+            </div>
+            <div class="game-hud">
+              <div class="pill stat-pill" id="test-module-name">—</div>
+              <div class="pill stat-pill"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span id="test-timer">00:00</span></div>
+            </div>
+          </header>
+          <div class="card question-card" id="test-question-card">
+            <div class="q-meta">
+              <span class="tag" id="test-q-section">Reading and Writing</span>
+              <span class="tag alt" id="test-q-topic">—</span>
+              <button class="calc-btn hidden" id="test-calc-btn" title="Toggle the Desmos graphing calculator">
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                Calculator
+              </button>
+              <button class="calc-btn hidden" id="test-hint-btn" title="50/50 — remove two wrong answers">
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+                Hint
+              </button>
+              <span class="q-difficulty" id="test-q-difficulty">★★☆</span>
+            </div>
+            <div class="q-text" id="test-q-text">Loading…</div>
+            <div class="choices" id="test-q-choices"></div>
+            <div class="calc-panel hidden" id="test-calc-panel">
+              <div class="calc-embed" id="test-calc-embed"></div>
+            </div>
+          </div>
+          <div class="test-controls">
+            <span class="muted small" id="test-progress-text">Question 1 of 10</span>
+            <button class="btn btn-ghost small-btn" id="test-finish-btn">End test early</button>
+          </div>
+        </div>
+
+        <div id="test-break" class="hidden">
+          <div class="results-wrap">
+            <div class="card results-card">
+              <div class="results-emoji">
+                <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+              </div>
+              <h1 class="results-title" id="test-break-title">Module complete</h1>
+              <p class="muted" id="test-break-sub">Take a quick breather.</p>
+              <button class="btn btn-primary" id="test-break-btn">Continue</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TEST RESULTS ============ -->
+      <section id="view-test-results" class="view app-view">
+        <div class="results-wrap">
+          <div class="card results-card test-score-card">
+            <p class="eyebrow">Your estimated score</p>
+            <div class="test-score-ring-wrap">
+              <div class="test-score-ring">
+                <svg viewBox="0 0 140 140" aria-hidden="true">
+                  <circle class="ring-track" cx="70" cy="70" r="62"/>
+                  <circle class="ring-fill" id="test-score-ring-fill" cx="70" cy="70" r="62"/>
+                </svg>
+                <div class="test-score-ring-center">
+                  <div class="grade-badge big" id="test-grade-badge"><span class="grade-letter" id="test-grade-letter">A</span><span class="grade-meta"><b id="test-grade-label">Excellent</b></span></div>
+                  <div class="scaled-score" id="scaled-score">—</div>
+                  <p class="score-range muted">SAT scale: 400–1600</p>
+                </div>
+              </div>
+            </div>
+            <p class="score-band" id="score-band">—</p>
+            <div class="score-section-grid">
+              <div class="score-sec">
+                <span class="score-sec-label">Reading and Writing</span>
+                <span class="score-sec-value" id="score-rw">—</span>
+                <span class="score-sec-correct" id="score-rw-correct">—</span>
+              </div>
+              <div class="score-sec">
+                <span class="score-sec-label">Math</span>
+                <span class="score-sec-value" id="score-math">—</span>
+                <span class="score-sec-correct" id="score-math-correct">—</span>
+              </div>
+            </div>
+            <div class="test-review" id="test-review"></div>
+            <div class="results-actions">
+              <button class="btn btn-primary" id="test-retake-btn">Take another test</button>
+              <button class="btn btn-ghost" data-view="dashboard">Back to dashboard</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ RESULTS ============ -->
+      <section id="view-results" class="view app-view">
+        <div class="results-wrap">
+          <div class="card results-card">
+            <div class="results-emoji" id="results-emoji"></div>
+            <h1 class="results-title" id="results-title">Round complete</h1>
+            <p class="muted" id="results-sub">Nice work.</p>
+            <div class="accuracy-ring-wrap">
+              <div class="accuracy-ring">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="ring-track" cx="60" cy="60" r="52"/>
+                  <circle class="ring-fill" id="accuracy-ring-fill" cx="60" cy="60" r="52"/>
+                </svg>
+                <div class="accuracy-ring-center">
+                  <b id="accuracy-ring-pct">0%</b>
+                  <span>accuracy</span>
+                </div>
+              </div>
+            </div>
+            <div class="results-stats">
+              <div class="r-stat"><span class="r-num" id="r-correct">0</span><span class="r-label">Correct</span></div>
+              <div class="r-stat"><span class="r-num" id="r-total">0</span><span class="r-label">Questions</span></div>
+              <div class="r-stat accent"><span class="r-num" id="r-marks">0</span><span class="r-label">Marks</span></div>
+              <div class="r-stat"><span class="r-num" id="r-accuracy">0%</span><span class="r-label">Accuracy</span></div>
+            </div>
+            <div class="grade-badge hidden" id="grade-badge"><span class="grade-letter" id="grade-letter">A</span><span class="grade-meta"><b id="grade-label">Excellent</b><span class="muted small" id="grade-sub">marks</span></span></div>
+            <p class="r-xp-line muted small" id="r-xp">+0 XP</p>
+            <div class="badges-earned" id="badges-earned"></div>
+            <div class="round-review hidden" id="round-review">
+              <h3 class="card-title" style="margin-top:20px">Review your misses</h3>
+              <div id="round-review-list"></div>
+            </div>
+            <div class="results-actions">
+              <button class="btn btn-primary" data-view="practice">Play again</button>
+              <button class="btn btn-ghost" data-view="dashboard">Back to dashboard</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ LEADERBOARD ============ -->
+      <section id="view-leaderboard" class="view app-view">
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">Hall of fame</p>
+            <h1 class="view-title">Leaderboard</h1>
+          </div>
+        </header>
+        <div class="card leaderboard-card">
+          <div class="leaderboard-podium" id="leaderboard-podium"></div>
+          <table class="leaderboard">
+            <thead><tr><th>#</th><th>Player</th><th>Level</th><th>Streak</th><th>Answered</th><th>XP</th></tr></thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ TUTOR ============ -->
+      <section id="view-tutor" class="view app-view">
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">Free AI study partner</p>
+            <h1 class="view-title">SAT Sage</h1>
+            <p class="muted" id="tutor-status">Built-in tutor · no API key needed</p>
+          </div>
+          <button class="btn btn-ghost small-btn" id="tutor-ai-btn">
+            <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Connect free AI
+          </button>
+        </header>
+        <div class="card chat-card">
+          <div class="chat-log" id="chat-log">
+            <div class="msg bot">
+              <div class="msg-avatar"></div>
+              <div class="msg-bubble">
+                <strong>SAT Sage</strong><br />
+                Hey! I'm your free AI tutor. Ask me about any SAT topic — strategies, grammar rules, math formulas, or how to keep your streak alive.
+              </div>
+            </div>
+          </div>
+          <div class="chat-suggest" id="chat-suggest">
+            <button class="chip" type="button" data-q="Explain the quadratic formula step by step">Quadratic formula</button>
+            <button class="chip" type="button" data-q="What are the top grammar rules on the SAT?">Grammar rules</button>
+            <button class="chip" type="button" data-q="How should I pace myself on the digital SAT?">Test pacing</button>
+            <button class="chip" type="button" data-q="Make me a 2-week SAT study plan">Study plan</button>
+          </div>
+          <form class="chat-input" id="chat-form">
+            <input id="chat-text" type="text" placeholder="Ask about a topic, strategy, or concept…" autocomplete="off" />
+            <button type="submit" class="btn btn-primary" id="chat-send" style="width:auto;padding:0 24px">Send</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ============ STORE (gem shop) ============ -->
+      <section id="view-store" class="view app-view">
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">Store</p>
+            <h1 class="view-title">Gem shop</h1>
+            <p class="view-sub">Spend gems on power-ups and study boosters.</p>
+          </div>
+          <div class="head-stats">
+            <div class="pill stat-pill" id="store-balance-pill" title="Your gems">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
+              <b id="store-balance">0</b>
+            </div>
+          </div>
+        </header>
+        <div class="store-banner hidden" id="store-banner"></div>
+        <h3 class="card-title store-section-title">Power-ups</h3>
+        <div class="store-grid" id="store-catalog"></div>
+        <h3 class="card-title store-section-title">Get more gems</h3>
+        <div class="store-packs" id="store-packs"></div>
+        <h3 class="card-title store-section-title">Your inventory</h3>
+        <div id="store-owned" class="store-owned"></div>
+      </section>
+
+      <!-- ============ ADMIN (control everything) ============ -->
+      <section id="view-admin" class="view app-view">
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">Admin panel</p>
+            <h1 class="view-title">Control center</h1>
+            <p class="muted small" style="margin-top:4px">Users, integrations and activity — everything in one place.</p>
+          </div>
+          <div class="head-stats">
+            <div class="pill stat-pill" id="admin-user-count" title="Total users">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <b id="admin-total-users">—</b>
+            </div>
+            <div class="pill stat-pill" id="admin-active-today" title="Active today">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+              <b id="admin-active-count">—</b>
+            </div>
+          </div>
+        </header>
+
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-admin-tab="overview">Overview</button>
+          <button class="admin-tab" data-admin-tab="users">Users</button>
+          <button class="admin-tab" data-admin-tab="integrations">Integrations</button>
+          <button class="admin-tab" data-admin-tab="store">Store</button>
+          <button class="admin-tab" data-admin-tab="activity">Activity</button>
+        </div>
+
+        <!-- Overview pane -->
+        <div class="admin-pane" id="admin-pane-overview">
+          <div class="admin-cards">
+            <div class="card admin-card stat-card">
+              <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
+              <div class="stat-num" id="admin-total-answers">0</div>
+              <div class="stat-label">Total answers</div>
+            </div>
+            <div class="card admin-card stat-card">
+              <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+              <div class="stat-num" id="admin-total-tests">0</div>
+              <div class="stat-label">Practice tests</div>
+            </div>
+            <div class="card admin-card stat-card">
+              <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></span>
+              <div class="stat-num" id="admin-recent-signups">0</div>
+              <div class="stat-label">Signups (7 days)</div>
+            </div>
+          </div>
+          <div class="card admin-top-card">
+            <h3 class="card-title">Top 5 by XP</h3>
+            <div id="admin-top-users"><p class="muted small">Loading...</p></div>
+          </div>
+        </div>
+
+        <!-- Users pane -->
+        <div class="admin-pane hidden" id="admin-pane-users">
+          <div class="card admin-table-card">
+            <h3 class="card-title">All users <span class="muted small" id="admin-user-subtitle"></span></h3>
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-users-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Level</th>
+                    <th>XP</th>
+                    <th>Streak</th>
+                    <th>Answers</th>
+                    <th>Accuracy</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Integrations pane (enter keys without touching .env) -->
+        <div class="admin-pane hidden" id="admin-pane-integrations">
+          <p class="muted small" style="margin-bottom:14px">Configure integrations right here — saved to the database and applied instantly, no server restart needed. Secrets are masked in this panel.</p>
+
+          <div class="card cfg-card">
+            <div class="cfg-card-head">
+              <h3>
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0"/></svg>
+                Google sign-in
+              </h3>
+              <span class="cfg-status off" id="cfg-google-status"><span class="dot"></span>Not configured</span>
+            </div>
+            <p class="cfg-desc">Paste your OAuth client credentials so students can sign in with Google.</p>
+            <div class="cfg-field">
+              <label for="cfg-google-client-id">Client ID</label>
+              <input id="cfg-google-client-id" type="text" autocomplete="off" placeholder="….apps.googleusercontent.com" />
+              <span class="cfg-hint" id="cfg-google-client-id-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-google-client-secret">Client secret</label>
+              <input id="cfg-google-client-secret" type="password" autocomplete="off" placeholder="GOCSPX-…" />
+              <span class="cfg-hint" id="cfg-google-client-secret-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-app-url">App URL (OAuth redirect base)</label>
+              <input id="cfg-app-url" type="text" autocomplete="off" placeholder="http://localhost:3000" />
+              <span class="cfg-hint">Used to build the callback: {APP_URL}/api/auth/google/callback — add that exact URI to your Google Cloud console.</span>
+            </div>
+            <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-google-clear-btn">Clear saved Google keys</button>
+          </div>
+
+          <div class="card cfg-card">
+            <div class="cfg-card-head">
+              <h3>
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                AI tutor (server-wide key)
+              </h3>
+              <span class="cfg-status off" id="cfg-ai-status"><span class="dot"></span>Built-in tutor</span>
+            </div>
+            <p class="cfg-desc">Add a free Gemini or Groq key so every student gets a real LLM tutor, even without a personal key.</p>
+            <div class="cfg-field">
+              <label for="cfg-gemini-key">Gemini API key (free — aistudio.google.com/apikey)</label>
+              <input id="cfg-gemini-key" type="password" autocomplete="off" placeholder="AIza…" />
+              <span class="cfg-hint" id="cfg-gemini-key-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-groq-key">Groq API key (free — console.groq.com/keys)</label>
+              <input id="cfg-groq-key" type="password" autocomplete="off" placeholder="gsk_…" />
+              <span class="cfg-hint" id="cfg-groq-key-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-groq-model">Groq model</label>
+              <input id="cfg-groq-model" type="text" autocomplete="off" placeholder="llama-3.3-70b-versatile" />
+            </div>
+            <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-ai-clear-btn">Clear saved AI keys</button>
+          </div>
+
+          <div class="cfg-save">
+            <p class="cfg-saved" id="cfg-saved-msg"></p>
+            <button class="btn btn-primary" id="cfg-save-btn" style="width:auto;padding:0 34px">Save integrations</button>
+          </div>
+        </div>
+
+        <!-- Activity pane -->
+        <div class="admin-pane hidden" id="admin-pane-activity">
+          <div class="card admin-log-card">
+            <h3 class="card-title">Admin activity log</h3>
+            <div id="admin-log-list"><p class="muted small">Loading...</p></div>
+          </div>
+        </div>
+
+        <!-- Store pane (economy) -->
+        <div class="admin-pane hidden" id="admin-pane-store">
+          <p class="muted small" style="margin-bottom:14px">The admin account gets every item and gem pack for free. Grant gems to any user, or watch the gem ledger and real-money orders.</p>
+          <div class="card cfg-card">
+            <h3 class="card-title">Grant gems</h3>
+            <div class="grant-row">
+              <select id="grant-user"><option value="">Select a user…</option></select>
+              <input id="grant-amount" type="number" min="-100000" max="100000" placeholder="Amount (e.g. 500)" />
+              <input id="grant-reason" type="text" placeholder="Reason (optional)" maxlength="80" />
+              <button class="btn btn-primary" id="grant-gems-btn">Grant</button>
+            </div>
+            <p class="form-error" id="grant-error"></p>
+          </div>
+          <div class="card admin-top-card" style="margin-top:14px">
+            <h3 class="card-title">Top gem balances</h3>
+            <div id="admin-store-balances"><p class="muted small">Loading...</p></div>
+          </div>
+          <div class="card admin-top-card" style="margin-top:14px">
+            <h3 class="card-title">Gem ledger</h3>
+            <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>User</th><th>Amount</th><th>Reason</th><th>When</th></tr></thead><tbody id="admin-store-ledger"></tbody></table></div>
+          </div>
+          <div class="card admin-top-card" style="margin-top:14px">
+            <h3 class="card-title">Orders (real-money packs)</h3>
+            <div id="admin-store-orders"><p class="muted small">No orders yet.</p></div>
+          </div>
+        </div>
+
+        <!-- User detail modal -->
+        <div class="modal hidden" id="admin-user-modal">
+          <div class="modal-backdrop" id="admin-user-backdrop"></div>
+          <div class="modal-card wide">
+            <h2>User details <span class="muted small" id="admin-detail-name"></span></h2>
+            <div id="admin-user-detail">
+              <p class="muted">Loading...</p>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-ghost" id="admin-user-close">Close</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- settings modal -->
+  <div class="modal hidden" id="settings-modal">
+    <div class="modal-backdrop" id="settings-backdrop"></div>
+    <div class="modal-card">
+      <h2>Exam settings</h2>
+      <p class="muted small">Set your target test date and daily question goal to power your study plan.</p>
+      <form id="settings-form">
+        <div class="field">
+          <label for="set-date">Target test date</label>
+          <input id="set-date" type="date" />
+          <button type="button" class="btn btn-ghost small-btn" id="clear-date-btn">Clear date</button>
+        </div>
+        <div class="field">
+          <label for="set-goal">Daily question goal</label>
+          <input id="set-goal" type="number" min="1" max="200" placeholder="10" />
+        </div>
+        <div class="settings-divider"><span>AI tutor</span></div>
+        <div class="field ai-key-field">
+          <label for="set-ai-key">Free AI key (Google Gemini) <span class="muted small">— powers SAT Sage with a real LLM</span></label>
+          <div class="pw-wrap">
+            <input id="set-ai-key" type="password" autocomplete="off" placeholder="Paste your free Gemini API key (AIza…)" />
+            <button type="button" class="pw-toggle" id="set-ai-key-toggle" title="Show key" aria-label="Show key">
+              <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="muted small" id="ai-key-status">Not connected — the built-in tutor is active.</p>
+          <p class="muted small">Get a free key in 1 minute at aistudio.google.com/apikey. Stored locally in your account.</p>
+          <button type="button" class="btn btn-ghost small-btn" id="clear-ai-key-btn">Remove AI key</button>
+        </div>
+        <p class="form-error" id="settings-error"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="settings-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;padding:0 28px">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- toast + level-up overlays -->
+  <div class="toast" id="toast"></div>
+  <div class="levelup hidden" id="levelup">
+    <div class="levelup-card">
+      <div class="levelup-emoji" id="levelup-emoji">
+        <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+      </div>
+      <h2>Level up</h2>
+      <p id="levelup-text">You reached level 2</p>
+      <button class="btn btn-primary" id="levelup-ok">Keep going</button>
+    </div>
+  </div>
+
+  <div class="confetti-layer" id="confetti-layer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

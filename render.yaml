@@ -1,0 +1,39 @@
+# Render Blueprint — free web service for SAT Arena.
+#
+# Persistence: Render's free tier wipes its local filesystem on every idle
+# spin-down, so the app is wired to use Turso (free, persistent SQLite over
+# HTTPS) whenever TURSO_URL + TURSO_AUTH_TOKEN are set. Without them it falls
+# back to a local data/satarena.db (local dev only).
+#
+# Deploy: push this repo to GitHub, then in Render:
+#   New → Blueprint → connect the repo. Fill in the secret env vars below.
+
+services:
+  - type: web
+    name: sat-arena
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The public URL of the site (used for the Google OAuth redirect_uri).
+      # e.g. https://sat-arena.onrender.com
+      - key: APP_URL
+        sync: false
+      # Turso database URL, e.g. libsql://sat-arena-<org>.turso.io
+      - key: TURSO_URL
+        sync: false
+      # Turso auth token (from `turso db tokens create`)
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      # Optional — Google OAuth (can also be set in the admin panel at runtime)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Optional — free Gemini key (powers the AI tutor; users can also bring
+      # their own key in Settings)
+      - key: GEMINI_API_KEY
+        sync: false
