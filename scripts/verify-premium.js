@@ -5,6 +5,15 @@
  */
 const base = process.argv[2] || 'http://localhost:3000';
 
+// Admin creds come from env (.env respected) — no password ships in source.
+try { process.loadEnvFile(); } catch { /* no .env — dev fallbacks */ }
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'tanwarojayit@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  console.error('ADMIN_PASSWORD is required to run this suite (set it in .env or the shell). The server seeds the admin account from that env var; a fresh DB without it gets a random password.');
+  process.exit(1);
+}
+
 // Never let a dead server hang the suite — every request times out in 20s.
 const _origFetch = globalThis.fetch;
 globalThis.fetch = (url, opts = {}) => {
@@ -124,7 +133,7 @@ function check(name, ok, extra) {
     // 12. admin grants premium for free → all gates open
     console.log('— admin grant premium —');
     const adm = newJar();
-    r = adm.grab(await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'tanwarojayit@gmail.com', password: 'baldeyan' }) }));
+    r = adm.grab(await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: ADMIN_EMAIL, password: ADMIN_PASSWORD }) }));
     check('admin login', r.status === 200);
     r = await fetch(base + '/api/admin/plan', { method: 'POST', headers: adm.h(), body: JSON.stringify({ userId, plan: 'premium' }) });
     check('admin grants premium', r.status === 200);

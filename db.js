@@ -253,11 +253,19 @@ async function migrateAndSeed(b) {
   await ensureColumn('users', 'plan', "plan TEXT NOT NULL DEFAULT 'free'");
   await ensureColumn('users', 'premium_until', 'premium_until TEXT');
 
-  // Seed admin user (AUTHORITATIVE — always works): every server start
-  // guarantees the admin account exists with EXACTLY this email + password.
-  const ADMIN_EMAIL = 'tanwarojayit@gmail.com';
-  const ADMIN_USERNAME = 'admin';
-  const ADMIN_PASSWORD = 'baldeyan';
+  // Seed admin user. Credentials come from env vars (see .env.example) so no
+  // password ever ships in source:
+  //   ADMIN_EMAIL    — admin login email (default keeps existing installs working)
+  //   ADMIN_USERNAME — display name (default 'admin')
+  //   ADMIN_PASSWORD — NO default. While set, the seed FORCE-SETS the admin's
+  //                    password to this value on every start (guaranteed access,
+  //                    like the old hardcoded seed). When unset, an existing
+  //                    admin's password is left untouched (a restart no longer
+  //                    reverts a changed password), and a brand-new admin gets a
+  //                    random password printed once to the console.
+  const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || 'tanwarojayit@gmail.com').trim().toLowerCase();
+  const ADMIN_USERNAME = String(process.env.ADMIN_USERNAME || 'admin').trim();
+  const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '').trim();
 
   function scryptHash(pw) {
     const salt = crypto.randomBytes(16).toString('hex');
@@ -267,27 +275,105 @@ async function migrateAndSeed(b) {
   function scryptVerify(pw, stored) {
     if (!stored || !stored.includes(':')) return false;
     const [salt, hash] = stored.split(':');
-    const candidate = crypto.scryptSync(pw, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(candidate, 'hex'));
+    // Corrupt hash (empty salt/hash) must never throw in the boot seed.
+    if (!salt || !hash) return false;
+    const expected = Buffer.from(hash, 'hex');
+    const candidate = crypto.scryptSync(pw, salt, 64);
+    // timingSafeEqual throws on length mismatch — never let a malformed hash
+    // crash the seed (this runs on every boot).
+    return expected.length === candidate.length && crypto.timingSafeEqual(expected, candidate);
   }
 
-  const existing = await b.prepare('SELECT id, password_hash, is_admin FROM users WHERE email = ?').get(ADMIN_EMAIL);
+  // email/username are UNIQUE — these checks keep the seed from ever crashing
+  // startup on a collision (e.g. a regular user who registered "admin").
+  async function emailFree(email, excludeId) {
+    const row = await b.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    return !row || row.id === excludeId;
+  }
+  async function usernameFree(name, excludeId) {
+    const row = await b.prepare('SELECT id FROM users WHERE username = ?').get(name);
+    return !row || row.id === excludeId;
+  }
+  async function setPassword(id, password) {
+    await b.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(scryptHash(password), id);
+  }
+
+  const ADMIN_FIELDS = 'id, username, email, password_hash, is_admin';
+
+  // 1) A user with the env email already exists → guarantee admin + password.
+  let existing = await b.prepare(`SELECT ${ADMIN_FIELDS} FROM users WHERE email = ?`).get(ADMIN_EMAIL);
+
+  // 2) Otherwise promote the current admin (covers a changed ADMIN_EMAIL —
+  //    never create a second admin).
   if (!existing) {
-    await b.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
-      .run(ADMIN_USERNAME, ADMIN_EMAIL, scryptHash(ADMIN_PASSWORD));
-    console.log('✓ Admin user created (tanwarojayit@gmail.com / baldeyan)');
-  } else {
+    existing = await b.prepare(`SELECT ${ADMIN_FIELDS} FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1`).get();
+    if (existing) {
+      let changed = false;
+      if (existing.email !== ADMIN_EMAIL) {
+        if (await emailFree(ADMIN_EMAIL, existing.id)) {
+          await b.prepare('UPDATE users SET email = ? WHERE id = ?').run(ADMIN_EMAIL, existing.id);
+          changed = true;
+        } else {
+          console.log('⚠  ADMIN_EMAIL is already registered to another user — keeping admin email ' + existing.email);
+        }
+      }
+      if (existing.username !== ADMIN_USERNAME && await usernameFree(ADMIN_USERNAME, existing.id)) {
+        await b.prepare('UPDATE users SET username = ? WHERE id = ?').run(ADMIN_USERNAME, existing.id);
+        changed = true;
+      }
+      if (ADMIN_PASSWORD && !scryptVerify(ADMIN_PASSWORD, existing.password_hash)) {
+        await setPassword(existing.id, ADMIN_PASSWORD);
+        changed = true;
+      }
+      console.log(changed ? '✓ Admin credentials ensured (' + ADMIN_EMAIL + ')' : '✓ Admin account ready (' + ADMIN_EMAIL + ')');
+      return;
+    }
+  }
+
+  // 3) Existing account with the target email → ensure admin + password
+  //    (+ the env username, so ADMIN_USERNAME is enforced here too).
+  if (existing) {
     let changed = false;
     if (!existing.is_admin) {
       await b.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(existing.id);
       changed = true;
     }
-    if (!scryptVerify(ADMIN_PASSWORD, existing.password_hash)) {
-      await b.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(scryptHash(ADMIN_PASSWORD), existing.id);
+    if (existing.username !== ADMIN_USERNAME && await usernameFree(ADMIN_USERNAME, existing.id)) {
+      await b.prepare('UPDATE users SET username = ? WHERE id = ?').run(ADMIN_USERNAME, existing.id);
       changed = true;
     }
-    if (changed) console.log('✓ Admin credentials ensured (tanwarojayit@gmail.com / baldeyan)');
-    else console.log('✓ Admin account ready (tanwarojayit@gmail.com)');
+    // Only force-reset the password when ADMIN_PASSWORD is explicitly set —
+    // otherwise respect whatever the owner changed it to.
+    if (ADMIN_PASSWORD && !scryptVerify(ADMIN_PASSWORD, existing.password_hash)) {
+      await setPassword(existing.id, ADMIN_PASSWORD);
+      changed = true;
+    }
+    if (changed) console.log('✓ Admin credentials ensured (' + ADMIN_EMAIL + ')');
+    else console.log('✓ Admin account ready (' + ADMIN_EMAIL + ')');
+    return;
+  }
+
+  // 4) Brand-new install — create the admin. Guard the UNIQUE username so a
+  //    regular user who already took "admin" can never crash the boot seed.
+  let username = ADMIN_USERNAME;
+  if (!(await usernameFree(username, null))) {
+    username = ADMIN_USERNAME + '_' + crypto.randomBytes(3).toString('hex');
+    console.log('⚠  Username "' + ADMIN_USERNAME + '" is taken — creating admin as "' + username + '". Set ADMIN_USERNAME in .env to control it.');
+  }
+  if (!ADMIN_PASSWORD) {
+    // No env password and no existing admin — create one with a random
+    // password and print it once (this line is the only place it appears).
+    const generated = crypto.randomBytes(12).toString('base64url'); // ~16 chars, URL-safe
+    await b.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
+      .run(username, ADMIN_EMAIL, scryptHash(generated));
+    console.log('⚠  Admin created with a RANDOM password — set ADMIN_PASSWORD in .env to control it.');
+    console.log('   email:    ' + ADMIN_EMAIL);
+    console.log('   username: ' + username);
+    console.log('   password: ' + generated + '  (shown only once, on first creation)');
+  } else {
+    await b.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
+      .run(username, ADMIN_EMAIL, scryptHash(ADMIN_PASSWORD));
+    console.log('✓ Admin user created (' + ADMIN_EMAIL + ')');
   }
 }
 

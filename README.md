@@ -52,6 +52,15 @@ Then open **http://localhost:3000** — create an account and start training.
 
 > Requires **Node.js ≥ 22.5** (uses the built-in `node:sqlite` module — no native compilation).
 
+## 🔐 Admin account
+
+The admin account is seeded on every server start from env vars (see `.env.example`):
+
+- `ADMIN_EMAIL` (default: the original admin email) and `ADMIN_USERNAME` (default: `admin`) define the account.
+- `ADMIN_PASSWORD` has **no default and never ships in source**. While it's set, the seed force-sets the admin's password to that value on every start (guaranteed access). When it's **unset**, an existing admin's password is left untouched — a restart no longer reverts a password you changed — and a brand-new admin gets a **random password printed once** in the server log.
+
+To rotate the admin password: put `ADMIN_PASSWORD=<new>` in `.env` and restart the server once, then remove it (or keep it to pin the password permanently). The admin panel lives at `/#/admin`.
+
 ## 🤖 Optional: free AI tutor upgrade
 
 The app works 100% without API keys. To supercharge the tutor with a real LLM, either:

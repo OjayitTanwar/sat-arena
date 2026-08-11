@@ -8,6 +8,15 @@
 
 const BASE = 'http://localhost:3000';
 
+// Admin creds come from env (.env respected) — no password ships in source.
+try { process.loadEnvFile(); } catch { /* no .env — dev fallbacks */ }
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'tanwarojayit@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  console.error('ADMIN_PASSWORD is required to run this suite (set it in .env or the shell). The server seeds the admin account from that env var; a fresh DB without it gets a random password.');
+  process.exit(1);
+}
+
 async function req(path, opts = {}) {
   const res = await fetch(BASE + path, {
     headers: { 'Content-Type': 'application/json', ...(opts.cookie ? { Cookie: opts.cookie } : {}) },
@@ -54,7 +63,7 @@ async function main() {
   // full practice tests are premium-only — grant the test user premium via admin
   const adminLogin = await fetch(BASE + '/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: 'tanwarojayit@gmail.com', password: 'baldeyan' }),
+    body: JSON.stringify({ identifier: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
   });
   const adminCookie = (adminLogin.headers.get('set-cookie') || '').split(';')[0];
   await fetch(BASE + '/api/admin/plan', {

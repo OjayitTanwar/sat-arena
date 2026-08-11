@@ -28,6 +28,15 @@ services:
       # Turso auth token (from `turso db tokens create`)
       - key: TURSO_AUTH_TOKEN
         sync: false
+      # Optional — admin account seed (see .env.example). While ADMIN_PASSWORD
+      # is set, the seed force-sets the admin password to it on every start;
+      # without it, a fresh DB gets a random password printed in the logs once.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
       # Optional — Google OAuth (can also be set in the admin panel at runtime)
       - key: GOOGLE_CLIENT_ID
         sync: false
