@@ -172,7 +172,7 @@
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
           <b id="top-gems">0</b>
         </div>
-        <button class="premium-badge hidden" id="top-premium-badge" title="You're on Premium — unlimited practice" data-view="store">
+        <button class="premium-badge hidden" id="top-premium-badge" title="You're on Premium — unlimited practice" data-view="premium">
           <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg>
           Premium
         </button>
@@ -194,6 +194,7 @@
         <button class="nav-item" data-view="test"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span>Full test</span></button>
         <button class="nav-item" data-view="leaderboard"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span><span>Leaderboard</span></button>
         <button class="nav-item" data-view="store"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg></span><span>Store</span></button>
+        <button class="nav-item" data-view="premium"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span><span>Premium</span></button>
         <button class="nav-item" data-view="tutor"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span>Tutor</span></button>
         <button class="nav-item hidden" id="nav-admin" data-view="admin"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span><span>Admin</span></button>
       </nav>
@@ -691,6 +692,75 @@
         <div id="store-owned" class="store-owned"></div>
       </section>
 
+      <!-- ============ PREMIUM (plan info) ============ -->
+      <section id="view-premium" class="view app-view">
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">Premium</p>
+            <h1 class="view-title">Unlock your best score</h1>
+            <p class="muted" id="premium-status-line">Loading your plan…</p>
+          </div>
+          <div class="head-stats">
+            <div class="pill stat-pill" id="premium-status-pill">—</div>
+          </div>
+        </header>
+
+        <div class="card premium-hero">
+          <span class="premium-hero-icon"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span>
+          <div>
+            <h2>Everything SAT Arena has to offer</h2>
+            <p class="muted">The free plan is a daily taste. Premium removes every limit so you can train the way test day demands — no caps, no ads.</p>
+          </div>
+        </div>
+
+        <div class="plan-grid premium-page-plans">
+          <div class="plan-card free">
+            <h3>Free</h3>
+            <p class="plan-price">$0</p>
+            <ul>
+              <li><span class="plan-check muted">✓</span> 10 practice questions a day</li>
+              <li><span class="plan-check muted">✓</span> 3 AI tutor messages a day</li>
+              <li><span class="plan-check muted">✓</span> Streaks, XP and leaderboard</li>
+              <li><span class="plan-check muted">✓</span> Ad-supported</li>
+            </ul>
+          </div>
+          <div class="plan-card premium">
+            <h3>Premium</h3>
+            <p class="plan-price" id="premium-page-price">$9.99<span>/month</span></p>
+            <ul>
+              <li><span class="plan-check">✓</span> Unlimited practice, every topic</li>
+              <li><span class="plan-check">✓</span> Full-length practice tests with Desmos</li>
+              <li><span class="plan-check">✓</span> Unlimited AI tutor</li>
+              <li><span class="plan-check">✓</span> Topic analytics + no ads</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card premium-features-card">
+          <h3 class="card-title">What premium unlocks</h3>
+          <div class="premium-features">
+            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><div><b>Unlimited practice</b><p class="muted small">As many adaptive questions as you want — no 10-per-day cap. Difficulty keeps tuning to your live skill rating.</p></div></div>
+            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><div><b>Full-length practice tests</b><p class="muted small">Real digital-SAT structure — 4 modules, 108 questions, adaptive module 2, Desmos calculator built in, scaled 400–1600 score.</p></div></div>
+            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><div><b>Unlimited AI tutor</b><p class="muted small">Chat with SAT Sage as much as you need — strategies, grammar rules, step-by-step math — no 3-message daily cap.</p></div></div>
+            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg></span><div><b>Topic analytics & ad-free</b><p class="muted small">Deep weak-spot reports per topic, and zero ads anywhere — the whole app stays calm and focused.</p></div></div>
+          </div>
+        </div>
+
+        <div class="card premium-cta-card">
+          <p class="form-error" id="premium-error"></p>
+          <div class="premium-cta-row">
+            <button class="btn btn-primary" id="premium-subscribe-btn">
+              <span class="btn-label">Subscribe</span>
+              <span class="btn-spinner hidden">
+                <svg class="icon sm spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+              </span>
+            </button>
+            <button class="btn btn-ghost hidden" id="premium-cancel-btn">Cancel premium</button>
+          </div>
+          <p class="muted small" style="margin-top:10px" id="premium-footnote">Cancel anytime — your premium lasts until the end of the period.</p>
+        </div>
+      </section>
+
       <!-- ============ ADMIN (control everything) ============ -->
       <section id="view-admin" class="view app-view">
         <header class="view-head">
@@ -855,24 +925,53 @@
             <div class="cfg-card-head">
               <h3>
                 <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                Ads & premium pricing
+                Ads
               </h3>
               <span class="cfg-status off" id="cfg-ads-status"><span class="dot"></span>Off</span>
             </div>
-            <p class="cfg-desc">Free users see ads (premium members never do). Paste your ad network snippet below — e.g. the banner code from Adsterra — and it renders in the dashboard, practice and test screens.</p>
+            <p class="cfg-desc">Free users see ads (premium members never do). Two ways to serve them: paste a custom snippet (e.g. Adsterra — instant approval) or use Google AdSense auto ads once approved.</p>
             <div class="cfg-field">
               <label class="cfg-check"><input type="checkbox" id="cfg-ads-enabled" /> Enable ads for free users</label>
             </div>
             <div class="cfg-field">
-              <label for="cfg-ads-code">Ad snippet (full script + container)</label>
+              <label>Ad network</label>
+              <div class="cfg-radio-row">
+                <label class="cfg-check"><input type="radio" name="ads-network" value="custom" /> Custom snippet (Adsterra etc.)</label>
+                <label class="cfg-check"><input type="radio" name="ads-network" value="adsense" /> Google AdSense</label>
+              </div>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-adsense-client">AdSense client ID (ca-pub-…)</label>
+              <input id="cfg-adsense-client" type="text" autocomplete="off" placeholder="ca-pub-XXXXXXXXXXXXXXXX" />
+              <span class="cfg-hint" id="cfg-adsense-client-hint"></span>
+            </div>
+            <div class="cfg-field">
+              <label for="cfg-ads-code">Custom ad snippet (full script + container)</label>
               <textarea id="cfg-ads-code" rows="4" autocomplete="off" placeholder="&lt;script src=…&gt;&lt;/script&gt;&#10;&lt;div id=…&gt;&lt;/div&gt;"></textarea>
               <span class="cfg-hint">Paste the complete banner/native ad code from your network.</span>
+            </div>
+          </div>
+
+          <div class="card cfg-card">
+            <div class="cfg-card-head">
+              <h3>
+                <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                Payments (Stripe) & premium pricing
+              </h3>
+              <span class="cfg-status off" id="cfg-payments-status"><span class="dot"></span>Not configured</span>
+            </div>
+            <p class="cfg-desc">Paste your Stripe secret key to take real card payments for premium subscriptions and gem packs. Find it at dashboard.stripe.com/apikeys — use a <b>sk_live_…</b> key once you go live, or <b>sk_test_…</b> to test with the card 4242 4242 4242 4242.</p>
+            <div class="cfg-field">
+              <label for="cfg-stripe-key">Stripe secret key</label>
+              <input id="cfg-stripe-key" type="password" autocomplete="off" placeholder="sk_live_… or sk_test_…" />
+              <span class="cfg-hint" id="cfg-stripe-key-hint"></span>
             </div>
             <div class="cfg-field">
               <label for="cfg-premium-price">Premium monthly price (USD cents)</label>
               <input id="cfg-premium-price" type="number" min="1" max="999999" placeholder="999" />
-              <span class="cfg-hint">Used for the Stripe subscription when STRIPE_SECRET_KEY is set (999 = $9.99/month).</span>
+              <span class="cfg-hint">999 = $9.99/month. Billed monthly via Stripe Checkout.</span>
             </div>
+            <button type="button" class="btn btn-ghost small-btn hidden" id="cfg-stripe-clear-btn">Clear saved Stripe key</button>
           </div>
 
           <div class="cfg-save">
@@ -965,6 +1064,7 @@
         </div>
       </div>
       <p class="form-error" id="upgrade-error"></p>
+      <button type="button" class="link-btn" id="upgrade-see-plans" style="margin:8px auto 0">See the full premium plan</button>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="upgrade-cancel">Maybe later</button>
         <button type="button" class="btn btn-primary" id="upgrade-subscribe-btn">

@@ -131,7 +131,7 @@ async function api(path, options = {}) {
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────
-const VIEWS = ['dashboard', 'practice', 'test', 'test-results', 'leaderboard', 'tutor', 'store', 'results', 'auth', 'admin'];
+const VIEWS = ['dashboard', 'practice', 'test', 'test-results', 'leaderboard', 'tutor', 'store', 'premium', 'results', 'auth', 'admin'];
 
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, '');
@@ -182,6 +182,7 @@ function showView(view) {
   if (view === 'tutor' && authed) refreshTutorStatus();
   if (view === 'test' && authed) resetTestMenu();
   if (view === 'store' && authed) loadStore().catch(() => toast('Could not load the store.'));
+  if (view === 'premium' && authed) loadPremiumPage().catch(() => toast('Could not load premium info.'));
   if (view === 'admin' && authed) loadAdminPanel().catch(() => toast('Could not load admin panel.'));
 }
 
@@ -425,8 +426,10 @@ function closeUpgrade() {
   $('#upgrade-modal').classList.add('hidden');
 }
 
-async function subscribePremium() {
-  const btn = $('#upgrade-subscribe-btn');
+async function subscribePremium(btnOverride, errorElId) {
+  const btn = btnOverride || $('#upgrade-subscribe-btn');
+  const errorEl = $(errorElId || '#upgrade-error');
+  if (!btn) return;
   const label = btn.querySelector('.btn-label');
   const spinner = btn.querySelector('.btn-spinner');
   btn.disabled = true;
@@ -435,9 +438,14 @@ async function subscribePremium() {
   try {
     const r = await api('/api/subscribe', { method: 'POST' });
     if (r.url) { location.href = r.url; return; } // Stripe checkout
-    if (r.already) { closeUpgrade(); toast('You are already premium'); return; }
+    if (r.already) {
+      if (errorEl) errorEl.textContent = '';
+      closeUpgrade();
+      toast('You are already premium');
+      return;
+    }
   } catch (err) {
-    $('#upgrade-error').textContent = err.message + ' (The admin can grant premium free from the admin panel.)';
+    if (errorEl) errorEl.textContent = err.message + ' (The admin can grant premium free from the admin panel.)';
     Sound.wrong();
   } finally {
     btn.disabled = false;
@@ -446,16 +454,81 @@ async function subscribePremium() {
   }
 }
 
+// ── Premium info page ──────────────────────────────────────────────────────
+async function loadPremiumPage() {
+  const s = await api('/api/subscription');
+  state.plan = { ...state.plan, premium: s.premium, priceCents: s.priceCents, dailyUsed: s.dailyUsed, tutorUsed: s.tutorUsed };
+  const price = '$' + (s.priceCents / 100).toFixed(2);
+  const priceEl = $('#premium-page-price');
+  if (priceEl) priceEl.innerHTML = price + '<span>/month</span>';
+  const pill = $('#premium-status-pill');
+  const statusLine = $('#premium-status-line');
+  const subBtn = $('#premium-subscribe-btn');
+  const cancelBtn = $('#premium-cancel-btn');
+  const footnote = $('#premium-footnote');
+  if (s.premium) {
+    if (pill) {
+      pill.className = 'pill stat-pill premium-pill';
+      pill.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/></svg> Premium`;
+    }
+    if (statusLine) statusLine.textContent = s.premium_until
+      ? `You're on Premium — active until ${String(s.premium_until).slice(0, 10)}.`
+      : 'You are on Premium — granted by the admin, no expiry.';
+    if (subBtn) subBtn.classList.add('hidden');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+    if (footnote) footnote.textContent = s.premium_until
+      ? 'Cancel to return to the free plan at the end of your period.'
+      : 'Admin-granted premium — only an admin can change it.';
+  } else {
+    if (pill) {
+      pill.className = 'pill stat-pill';
+      pill.innerHTML = 'Free plan';
+    }
+    if (statusLine) statusLine.textContent = `Free plan — ${Math.max(0, s.dailyLimit - s.dailyUsed)} of ${s.dailyLimit} questions left today, ${Math.max(0, s.tutorLimit - s.tutorUsed)} of ${s.tutorLimit} tutor messages.`;
+    if (subBtn) subBtn.classList.remove('hidden');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+    if (footnote) footnote.textContent = s.paymentsConfigured
+      ? 'Cancel anytime — your premium lasts until the end of the period.'
+      : 'Payments are not configured yet — ask the admin to enable premium for you.';
+  }
+  $('#premium-error').textContent = '';
+  applyPlan({ premium: s.premium });
+}
+
+async function cancelPremium() {
+  if (!confirm('Cancel your premium subscription?')) return;
+  try {
+    const r = await api('/api/subscription/cancel', { method: 'POST' });
+    toast(r.premium ? 'Admins always stay premium' : 'Premium cancelled — back to the free plan');
+    Sound.click();
+    loadPremiumPage();
+    applyPlan({ premium: false });
+  } catch (err) {
+    $('#premium-error').textContent = err.message;
+  }
+}
+
 // ── Ad slots (free tier only) ──────────────────────────────────────────────
 // The admin pastes the ad network snippet (e.g. Adsterra) in the admin panel;
 // when enabled it renders into the dashboard/practice/test slots.
 function renderAds(ads) {
-  const enabled = ads && ads.enabled && ads.code && isFreeUser();
+  const enabled = ads && ads.enabled && isFreeUser();
+  const adsense = enabled && ads.network === 'adsense' && ads.adsenseClient;
+  const custom = enabled && !adsense && ads.code;
   const slots = ['#ad-slot-dashboard', '#ad-slot-practice', '#ad-slot-test'];
+  // AdSense: load the loader script once, then push a responsive unit per slot
+  if (adsense && !window.adsbygoogle) {
+    window.adsbygoogle = [];
+    const s = document.createElement('script');
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(ads.adsenseClient);
+    document.head.appendChild(s);
+  }
   for (const sel of slots) {
     const el = $(sel);
     if (!el) continue;
-    if (enabled) {
+    if (custom) {
       el.classList.remove('hidden');
       // re-create <script> nodes so the ad snippet actually executes
       el.innerHTML = '';
@@ -463,14 +536,25 @@ function renderAds(ads) {
       tmp.innerHTML = ads.code;
       for (const node of [...tmp.children]) {
         if (node.tagName === 'SCRIPT') {
-          const s = document.createElement('script');
-          for (const attr of [...node.attributes]) s.setAttribute(attr.name, attr.value);
-          s.textContent = node.textContent;
-          el.appendChild(s);
+          const ns = document.createElement('script');
+          for (const attr of [...node.attributes]) ns.setAttribute(attr.name, attr.value);
+          ns.textContent = node.textContent;
+          el.appendChild(ns);
         } else {
           el.appendChild(node);
         }
       }
+    } else if (adsense) {
+      el.classList.remove('hidden');
+      el.innerHTML = '';
+      const ins = document.createElement('ins');
+      ins.className = 'adsbygoogle';
+      ins.style.display = 'block';
+      ins.dataset.adClient = ads.adsenseClient;
+      ins.dataset.adFormat = 'auto';
+      ins.dataset.fullWidthResponsive = 'true';
+      el.appendChild(ins);
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { /* noop */ }
     } else {
       el.classList.add('hidden');
       el.innerHTML = '';
@@ -2178,6 +2262,7 @@ function renderConfigStatus(status) {
   set('#cfg-ai-status', status.ai, 'AI key connected', 'Built-in tutor');
   set('#cfg-email-status', status.email, 'Email connected', 'Not configured (dev mode)');
   set('#cfg-ads-status', status.ads, 'Ads enabled', 'Off');
+  set('#cfg-payments-status', status.payments, 'Payments connected', 'Not configured');
 }
 
 async function loadAdminConfig() {
@@ -2190,7 +2275,12 @@ async function loadAdminConfig() {
   $('#cfg-email-from').value = config.email_from || '';
   $('#cfg-ads-enabled').checked = config.ads_enabled === '1';
   $('#cfg-ads-code').value = config.ads_code || '';
+  $('#cfg-adsense-client').value = '';
+  $('#cfg-stripe-key').value = '';
   $('#cfg-premium-price').value = config.premium_price_cents || '999';
+  // ads network radio
+  const net = config.ads_network === 'adsense' ? 'adsense' : 'custom';
+  $$('input[name="ads-network"]').forEach((r) => { r.checked = r.value === net; });
   const setHint = (id, masked) => {
     const el = $(id);
     if (el) el.textContent = masked ? `Saved: ${masked} — leave blank to keep.` : 'Not set.';
@@ -2200,9 +2290,12 @@ async function loadAdminConfig() {
   setHint('#cfg-gemini-key-hint', config.gemini_api_key);
   setHint('#cfg-groq-key-hint', config.groq_api_key);
   setHint('#cfg-resend-key-hint', config.resend_api_key);
+  setHint('#cfg-adsense-client-hint', config.adsense_client);
+  setHint('#cfg-stripe-key-hint', config.stripe_secret_key);
   $('#cfg-google-clear-btn').classList.toggle('hidden', !status.google);
   $('#cfg-ai-clear-btn').classList.toggle('hidden', !status.ai);
   $('#cfg-email-clear-btn').classList.toggle('hidden', !status.email);
+  $('#cfg-stripe-clear-btn').classList.toggle('hidden', !status.payments);
   renderConfigStatus(status);
   $('#cfg-saved-msg').textContent = '';
 }
@@ -2214,6 +2307,7 @@ async function saveAdminConfig() {
   btn.disabled = true;
   try {
     const body = {};
+    const clears = [];
     // Only send fields the admin actually typed — empty = keep current
     const pairs = [
       ['google_client_id', $('#cfg-google-client-id')],
@@ -2225,14 +2319,19 @@ async function saveAdminConfig() {
       ['resend_api_key', $('#cfg-resend-key')],
       ['email_from', $('#cfg-email-from')],
       ['ads_code', $('#cfg-ads-code')],
+      ['adsense_client', $('#cfg-adsense-client')],
+      ['stripe_secret_key', $('#cfg-stripe-key')],
       ['premium_price_cents', $('#cfg-premium-price')],
     ];
     if ($('#cfg-ads-enabled').checked) body.ads_enabled = '1';
-    else body.ads_enabled = '';
+    else clears.push('ads_enabled'); // blank = keep, so an explicit clear turns ads off
+    const netRadio = $$('input[name="ads-network"]').find((r) => r.checked);
+    body.ads_network = netRadio ? netRadio.value : 'custom';
     for (const [k, el] of pairs) {
       const v = el.value.trim();
       if (v) body[k] = v;
     }
+    if (clears.length) body.clear = clears;
     if (!Object.keys(body).length) {
       const msg = $('#cfg-saved-msg');
       msg.textContent = 'Type a value first — blank fields keep their current setting.';
@@ -2558,12 +2657,18 @@ async function init() {
   $('#cfg-email-clear-btn').addEventListener('click', () => {
     if (confirm('Clear the saved email (Resend) settings? OTP codes will be shown in dev mode until a key is added.')) clearAdminConfig(['resend_api_key', 'email_from']);
   });
+  $('#cfg-stripe-clear-btn').addEventListener('click', () => {
+    if (confirm('Clear the saved Stripe key? Payments will be disabled until a key is added.')) clearAdminConfig(['stripe_secret_key']);
+  });
 
   // premium upgrade modal
-  $('#upgrade-subscribe-btn').addEventListener('click', subscribePremium);
+  $('#upgrade-subscribe-btn').addEventListener('click', () => subscribePremium());
   $('#upgrade-cancel').addEventListener('click', closeUpgrade);
   $('#upgrade-backdrop').addEventListener('click', closeUpgrade);
+  $('#upgrade-see-plans').addEventListener('click', () => { Sound.click(); closeUpgrade(); navigate('premium'); });
   $('#free-limit-upgrade').addEventListener('click', () => { Sound.click(); openUpgrade('daily_limit'); });
+  $('#premium-subscribe-btn').addEventListener('click', () => subscribePremium($('#premium-subscribe-btn'), '#premium-error'));
+  $('#premium-cancel-btn').addEventListener('click', cancelPremium);
   $('#admin-user-close').addEventListener('click', () => $('#admin-user-modal').classList.add('hidden'));
   $('#admin-user-backdrop').addEventListener('click', () => $('#admin-user-modal').classList.add('hidden'));
 

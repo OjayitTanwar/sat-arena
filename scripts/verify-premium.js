@@ -166,7 +166,44 @@ function check(name, ok, extra) {
     check('premium user never sees ads', d.ads && d.ads.enabled === false);
     await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ ads_enabled: '', ads_code: '' }) });
 
-    // 16. admin revoke → back to free
+    // 17. AdSense auto-ads mode (jar user is still premium here — the revoke
+    // check moved to the very end)
+    r = await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ ads_enabled: '1', ads_network: 'adsense', adsense_client: 'ca-pub-1111222233334444' }) });
+    check('admin saves adsense config', r.status === 200);
+    r = await fetch(base + '/api/me', { headers: free2.h() });
+    d = await j(r);
+    check('free user gets adsense payload', d.ads && d.ads.enabled === true && d.ads.network === 'adsense' && d.ads.adsenseClient === 'ca-pub-1111222233334444' && d.ads.code === '');
+    r = await fetch(base + '/api/me', { headers: jar.h() });
+    d = await j(r);
+    check('premium user sees no adsense ads', d.ads && d.ads.enabled === false);
+
+    // 18. Stripe key config wiring: with a key, subscribe must hit Stripe (not 'not configured')
+    r = await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ stripe_secret_key: 'sk_test_fakekey123' }) });
+    check('admin saves stripe key', r.status === 200);
+    // config list should include the new fields
+    r = await fetch(base + '/api/admin/config', { headers: adm.h() });
+    d = await j(r);
+    check('admin config has adsense + stripe fields', d.config && ('ads_network' in d.config) && ('adsense_client' in d.config) && ('stripe_secret_key' in d.config));
+    const free3 = newJar();
+    const f3Email = 'free3' + stamp + '@t.com';
+    r = await fetch(base + '/api/auth/otp/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: f3Email, purpose: 'signup' }) });
+    const f3code = (await j(r)).dev;
+    r = free3.grab(await fetch(base + '/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'free3' + stamp, email: f3Email, password: 'pass123', otp: f3code }) }));
+    check('third free user signs up', r.status === 200);
+    r = await fetch(base + '/api/subscription', { headers: free3.h() });
+    d = await j(r);
+    check('paymentsConfigured true with key saved', d.paymentsConfigured === true);
+    r = await fetch(base + '/api/subscribe', { method: 'POST', headers: free3.h() });
+    check('subscribe with key reaches Stripe (not 503)', r.status !== 503, 'status=' + r.status);
+    // cleanup: explicit clear removes the fake key + ads config (blank = keep)
+    r = await fetch(base + '/api/admin/config', { method: 'POST', headers: adm.h(), body: JSON.stringify({ clear: ['stripe_secret_key', 'ads_enabled', 'ads_network', 'adsense_client', 'ads_code'] }) });
+    check('admin clears keys/ads', r.status === 200);
+    r = await fetch(base + '/api/admin/config', { headers: adm.h() });
+    d = await j(r);
+    check('stripe key cleared from config', !d.config.stripe_secret_key);
+    check('ads config cleared', d.config.ads_enabled !== '1');
+
+    // 16 (moved here). admin revoke → back to free
     r = await fetch(base + '/api/admin/plan', { method: 'POST', headers: adm.h(), body: JSON.stringify({ userId, plan: 'free' }) });
     check('admin revokes premium', r.status === 200);
     r = await fetch(base + '/api/me', { headers: jar.h() });

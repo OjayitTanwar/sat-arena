@@ -405,7 +405,12 @@ app.get('/api/me', async (req, res) => {
       tutorUsed: await todayTutorCount(user.id),
       tutorLimit: FREE_TUTOR_DAILY,
     },
-    ads: isPremium(user) ? { enabled: false } : { enabled: c.adsEnabled, code: c.adsEnabled ? c.adsCode : '' },
+    ads: isPremium(user) ? { enabled: false } : {
+      enabled: c.adsEnabled,
+      code: c.adsEnabled && c.adsNetwork !== 'adsense' ? c.adsCode : '',
+      network: c.adsNetwork || 'custom',
+      adsenseClient: c.adsEnabled && c.adsNetwork === 'adsense' ? c.adsenseClient : '',
+    },
   });
 });
 
@@ -904,7 +909,12 @@ app.get('/api/dashboard', authRequired, async (req, res) => {
       tutorUsed: await todayTutorCount(user.id),
       tutorLimit: FREE_TUTOR_DAILY,
     },
-    ads: isPremium(user) ? { enabled: false } : { enabled: cfg.adsEnabled, code: cfg.adsEnabled ? cfg.adsCode : '' },
+    ads: isPremium(user) ? { enabled: false } : {
+      enabled: cfg.adsEnabled,
+      code: cfg.adsEnabled && cfg.adsNetwork !== 'adsense' ? cfg.adsCode : '',
+      network: cfg.adsNetwork || 'custom',
+      adsenseClient: cfg.adsEnabled && cfg.adsNetwork === 'adsense' ? cfg.adsenseClient : '',
+    },
   });
 });
 
@@ -1098,7 +1108,7 @@ app.post('/api/store/checkout', authRequired, async (req, res) => {
     await awardGems(req.user.id, pack.gems, 'admin free pack ' + packId);
     return res.json({ ok: true, free: true, gems: await getGems(req.user.id) });
   }
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = (await getConfig()).stripeKey;
   if (!key) return res.status(503).json({ error: 'Payments are not configured yet — ask the admin for a gem grant.' });
   const base = (await getConfig()).appUrl || `${req.protocol}://${req.get('host')}`;
   try {
@@ -1133,7 +1143,7 @@ app.post('/api/store/checkout', authRequired, async (req, res) => {
 
 // Stripe Checkout success redirect — credits gems idempotently (no webhook needed).
 app.get('/api/store/confirm', authRequired, async (req, res) => {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = (await getConfig()).stripeKey;
   const sessionId = String(req.query.session_id || '');
   if (!key || !sessionId) return res.redirect('/#/store?paid=error');
   try {
@@ -1331,7 +1341,7 @@ app.get('/api/subscription', authRequired, async (req, res) => {
     plan: req.user.plan || 'free',
     premium_until: req.user.premium_until || null,
     priceCents: c.premiumPriceCents,
-    paymentsConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+    paymentsConfigured: Boolean(c.stripeKey),
     dailyUsed: await todayAnswerCount(req.user.id),
     dailyLimit: FREE_DAILY_QUESTIONS,
     tutorUsed: await todayTutorCount(req.user.id),
@@ -1344,7 +1354,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
     return res.json({ ok: true, already: true, premium: true });
   }
   const c = await getConfig();
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = c.stripeKey;
   if (!key) {
     return res.status(503).json({ error: 'Payments are not configured yet — ask the admin for a premium grant.', upgrade: true });
   }
@@ -1382,7 +1392,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
 
 // Stripe subscription success — grants premium for 30 days (idempotent).
 app.get('/api/subscription/confirm', authRequired, async (req, res) => {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = (await getConfig()).stripeKey;
   const sessionId = String(req.query.session_id || '');
   if (!key || !sessionId) return res.redirect('/#/store?upgraded=error');
   try {
@@ -1520,7 +1530,10 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       resend_api_key: maskSecret(c.resendKey),
       email_from: c.emailFrom,
       ads_enabled: c.adsEnabled ? '1' : '',
-      ads_code: c.adsEnabled ? c.adsCode : '',
+      ads_code: c.adsCode,
+      ads_network: c.adsNetwork || 'custom',
+      adsense_client: maskSecret(c.adsenseClient),
+      stripe_secret_key: maskSecret(c.stripeKey),
       premium_price_cents: String(c.premiumPriceCents),
     },
     status: {
@@ -1529,14 +1542,14 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
       email: Boolean(c.resendKey),
-      ads: c.adsEnabled && Boolean(c.adsCode),
-      payments: Boolean(process.env.STRIPE_SECRET_KEY),
+      ads: c.adsEnabled && Boolean(c.adsNetwork === 'adsense' ? c.adsenseClient : c.adsCode),
+      payments: Boolean(c.stripeKey),
     },
   });
 });
 
 app.post('/api/admin/config', adminRequired, async (req, res) => {
-  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'ads_enabled', 'ads_code', 'premium_price_cents'];
+  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents'];
 
   // Empty fields and masked values ('•••') are treated as "keep current" so
   // a save that leaves a secret untouched can never overwrite it with the
@@ -1575,7 +1588,10 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       resend_api_key: maskSecret(c.resendKey),
       email_from: c.emailFrom,
       ads_enabled: c.adsEnabled ? '1' : '',
-      ads_code: c.adsEnabled ? c.adsCode : '',
+      ads_code: c.adsCode,
+      ads_network: c.adsNetwork || 'custom',
+      adsense_client: maskSecret(c.adsenseClient),
+      stripe_secret_key: maskSecret(c.stripeKey),
       premium_price_cents: String(c.premiumPriceCents),
     },
     status: {
@@ -1584,8 +1600,8 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
       groq: Boolean(c.groqKey),
       ai: Boolean(c.geminiKey || c.groqKey),
       email: Boolean(c.resendKey),
-      ads: c.adsEnabled && Boolean(c.adsCode),
-      payments: Boolean(process.env.STRIPE_SECRET_KEY),
+      ads: c.adsEnabled && Boolean(c.adsNetwork === 'adsense' ? c.adsenseClient : c.adsCode),
+      payments: Boolean(c.stripeKey),
     },
   });
 });
