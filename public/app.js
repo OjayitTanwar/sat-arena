@@ -10,6 +10,7 @@ const state = {
   view: 'dashboard',
   game: null,          // active quick-practice game
   test: null,          // active full practice test
+  ptest: null,         // active focused practice test
   tutorHistory: [],
   topicStats: null,    // per-topic proficiency ratings (from /api/topics)
   store: null,         // gem balance + inventory snapshot (from /api/store / dashboard)
@@ -113,7 +114,7 @@ async function api(path, options = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) {
-    // A 401 on the login endpoint means bad credentials — show the server's
+    // A 401 on the login endpoint means bad credentials, show the server's
     // real message instead of pretending the session expired.
     if (path.includes('/api/auth/login')) {
       throw new Error(data.error || 'Incorrect username or password.');
@@ -124,7 +125,7 @@ async function api(path, options = {}) {
   }
   if (!res.ok) {
     const err = new Error(data.error || 'Request failed');
-    // 402 = plan gate hit (daily limit / premium feature) — carry the flag so
+    // 402 = plan gate hit (daily limit / premium feature), carry the flag so
     // callers can open the upgrade modal instead of just toasting.
     if (res.status === 402) { err.upgrade = true; err.code = data.code || 'premium'; }
     throw err;
@@ -133,7 +134,7 @@ async function api(path, options = {}) {
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────
-const VIEWS = ['landing', 'dashboard', 'practice', 'test', 'test-results', 'leaderboard', 'tutor', 'store', 'premium', 'results', 'auth', 'admin'];
+const VIEWS = ['landing', 'dashboard', 'practice', 'test', 'test-results', 'stats', 'leaderboard', 'tutor', 'store', 'premium', 'results', 'auth', 'admin'];
 
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, '');
@@ -152,7 +153,7 @@ function showView(view) {
   // deep-link) → fall back to a sensible screen instead of a blank page.
   if (!VIEWS.includes(view)) view = authed ? 'dashboard' : 'landing';
   // Logged-out users only ever see the landing or auth screens (an empty
-  // hash parses as 'dashboard' — e.g. pressing Back from #/auth); logged-in
+  // hash parses as 'dashboard', e.g. pressing Back from #/auth); logged-in
   // users never see the marketing/auth pages.
   if (!authed) {
     if (view !== 'landing' && view !== 'auth') view = 'landing';
@@ -195,6 +196,7 @@ function showView(view) {
   if (view === 'auth') handleGoogleError();
   if (view === 'dashboard' && authed) loadDashboard().catch(() => toast('Could not load dashboard.'));
   if (view === 'leaderboard' && authed) loadLeaderboard().catch(() => toast('Could not load leaderboard.'));
+  if (view === 'stats' && authed) loadStats().catch(() => toast('Could not load stats.'));
   if (view === 'practice' && authed) resetPracticeMenu();
   if (view === 'tutor' && authed) refreshTutorStatus();
   if (view === 'test' && authed) resetTestMenu();
@@ -317,8 +319,8 @@ function trackQuestAnswer(correct, xp) {
   if (crossed) {
     localStorage.setItem(key, JSON.stringify(d));
     confetti(60 + crossed * 30);
-    if (d.done.length >= 3) setTimeout(() => toast('All daily quests complete — what a day'), 400);
-    else setTimeout(() => toast('Quest complete — keep the streak going'), 400);
+    if (d.done.length >= 3) setTimeout(() => toast('All daily quests complete, what a day'), 400);
+    else setTimeout(() => toast('Quest complete, keep the streak going'), 400);
   }
   renderQuests();
 }
@@ -415,7 +417,7 @@ function renderFreeLimit() {
   if (free) {
     const left = Math.max(0, state.plan.dailyLimit - state.plan.dailyUsed);
     card.classList.remove('hidden');
-    text.innerHTML = `<b>Free plan:</b> ${left} of ${state.plan.dailyLimit} questions left today — go premium for unlimited practice.`;
+    text.innerHTML = `<b>Free plan:</b> ${left} of ${state.plan.dailyLimit} questions left today. Go premium for unlimited practice.`;
   } else {
     card.classList.add('hidden');
   }
@@ -465,7 +467,7 @@ const COUNTRY_CURRENCY = {
 let fxRatesCache = null; // { at: ms, rates: { 'INR': 83.2, ... } }
 
 // Last-resort approximate USD rates (used only when BOTH live APIs are
-// unreachable — keeps prices in the local currency even fully offline).
+// unreachable, keeps prices in the local currency even fully offline).
 const FALLBACK_FX_RATES = {
   INR: 84, GBP: 0.79, EUR: 0.92, CAD: 1.38, AUD: 1.52, NZD: 1.67, JPY: 154, KRW: 1380,
   CNY: 7.25, SGD: 1.35, MYR: 4.7, IDR: 16200, THB: 36, PHP: 58, VND: 25400, BDT: 117,
@@ -532,7 +534,7 @@ async function localPrice(cents) {
   }
 }
 
-// Landing-page plan cards are static HTML — localize them once on load.
+// Landing-page plan cards are static HTML, localize them once on load.
 // Prices are the admin defaults (999 / 7999 / 14900 cents); the premium page
 // re-prices from the live catalog when the user is logged in.
 async function localizeLandingPrices() {
@@ -602,11 +604,11 @@ async function syncPlanSelection() {
   if (!note) return;
   if (sel === 'lifetime') {
     const cents = p ? p.priceCents : 14900;
-    note.textContent = 'Lifetime — ' + await localPrice(cents) + ' one-time, no renewals.';
+    note.textContent = 'Lifetime, ' + await localPrice(cents) + ' one-time, no renewals.';
   } else {
     const cents = p ? p.priceCents : (sel === 'annual' ? 7999 : 999);
     const per = sel === 'annual' ? '/year' : '/month';
-    note.textContent = sel.charAt(0).toUpperCase() + sel.slice(1) + ' — ' + await localPrice(cents) + per + ', cancel anytime.';
+    note.textContent = sel.charAt(0).toUpperCase() + sel.slice(1) + ', ' + await localPrice(cents) + per + ', cancel anytime.';
   }
 }
 
@@ -635,24 +637,24 @@ async function loadPremiumPage() {
       pill.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/></svg> Premium`;
     }
     if (statusLine) statusLine.textContent = s.premium_until
-      ? `You're on Premium — active until ${String(s.premium_until).slice(0, 10)}.`
-      : 'You are on Premium — granted by the admin, no expiry.';
+      ? `You're on Premium, active until ${String(s.premium_until).slice(0, 10)}.`
+      : 'You are on Premium, granted by the admin, no expiry.';
     if (subBtn) subBtn.classList.add('hidden');
     if (cancelBtn) cancelBtn.classList.remove('hidden');
     if (footnote) footnote.textContent = s.premium_until
       ? 'Cancel to return to the free plan at the end of your period.'
-      : 'Admin-granted premium — only an admin can change it.';
+      : 'Admin-granted premium, only an admin can change it.';
   } else {
     if (pill) {
       pill.className = 'pill stat-pill';
       pill.innerHTML = 'Free plan';
     }
-    if (statusLine) statusLine.textContent = `Free plan — ${Math.max(0, s.dailyLimit - s.dailyUsed)} of ${s.dailyLimit} questions left today, ${Math.max(0, s.tutorLimit - s.tutorUsed)} of ${s.tutorLimit} tutor messages.`;
+    if (statusLine) statusLine.textContent = `Free plan, ${Math.max(0, s.dailyLimit - s.dailyUsed)} of ${s.dailyLimit} questions left today, ${Math.max(0, s.tutorLimit - s.tutorUsed)} of ${s.tutorLimit} tutor messages.`;
     if (subBtn) subBtn.classList.remove('hidden');
     if (cancelBtn) cancelBtn.classList.add('hidden');
     if (footnote) footnote.textContent = s.paymentsConfigured
-      ? 'Cancel anytime — your premium lasts until the end of the period.'
-      : 'Payments are not configured yet — ask the admin to enable premium for you.';
+      ? 'Cancel anytime, your premium lasts until the end of the period.'
+      : 'Payments are not configured yet, ask the admin to enable premium for you.';
   }
   $('#premium-error').textContent = '';
   applyPlan({ premium: s.premium });
@@ -662,7 +664,7 @@ async function cancelPremium() {
   if (!confirm('Cancel your premium subscription?')) return;
   try {
     const r = await api('/api/subscription/cancel', { method: 'POST' });
-    toast(r.premium ? 'Admins always stay premium' : 'Premium cancelled — back to the free plan');
+    toast(r.premium ? 'Admins always stay premium' : 'Premium cancelled, back to the free plan');
     Sound.click();
     loadPremiumPage();
     applyPlan({ premium: false });
@@ -728,11 +730,11 @@ function renderAds(ads) {
 // ── Auth ───────────────────────────────────────────────────────────────────
 const GOOGLE_ERROR_MSGS = {
   '1': 'Google sign-in was cancelled.',
-  '2': 'Google sign-in expired — please try again.',
-  '3': 'Google could not complete the sign-in — try again.',
+  '2': 'Google sign-in expired, please try again.',
+  '3': 'Google could not complete the sign-in, try again.',
   '4': 'Could not verify your Google account.',
   '5': 'That Google account has no verified email.',
-  '6': 'Google sign-in hit a snag — try again in a moment.',
+  '6': 'Google sign-in hit a snag, try again in a moment.',
 };
 
 function handleGoogleError() {
@@ -827,7 +829,7 @@ function initAuth() {
       $('#signup-step2').classList.remove('hidden');
       $('#signup-otp-error').textContent = '';
       $('#signup-otp-hint').textContent = r.dev
-        ? `Dev mode — no email provider configured yet. Your code is ${r.dev}.`
+        ? `Dev mode, no email provider configured yet. Your code is ${r.dev}.`
         : `We sent a 6-digit code to ${email}. Enter it below to finish creating your account.`;
       $('#su-otp').value = r.dev || '';
       setTimeout(() => $('#su-otp').focus(), 60);
@@ -910,7 +912,7 @@ function initAuth() {
         resetStep = 2;
         $('#reset-otp-wrap').classList.remove('hidden');
         $('#reset-submit-label').textContent = 'Reset password';
-        $('#reset-error').textContent = r.dev ? `Dev mode — your code is ${r.dev}.` : '';
+        $('#reset-error').textContent = r.dev ? `Dev mode, your code is ${r.dev}.` : '';
         if (r.dev) $('#reset-otp').value = r.dev;
         Sound.click();
       } catch (err) {
@@ -928,7 +930,7 @@ function initAuth() {
         method: 'POST',
         body: { email, otp: $('#reset-otp').value.trim(), password },
       });
-      toast('Password reset — log in with your new password');
+      toast('Password reset, log in with your new password');
       Sound.finish();
       resetForm.classList.add('hidden');
       $('#form-login').classList.remove('hidden');
@@ -1072,13 +1074,13 @@ async function renderDashboardData(data) {
     $('#countdown-sub').textContent = 'Set a new date in settings for a fresh countdown.';
   } else {
     card.classList.add('hidden');
-    $('#dash-countdown').innerHTML = '<b>—</b>';
+    $('#dash-countdown').innerHTML = '<b>-</b>';
   }
   const goalDone = data.stats.goalPct >= 100;
   $('#goal-progress').style.width = data.stats.goalPct + '%';
   $('#goal-progress').classList.toggle('done', goalDone);
   $('#goal-text').innerHTML = goalDone
-    ? `${ICONS.check} Daily goal met — ${data.stats.answeredToday} questions today`
+    ? `${ICONS.check} Daily goal met, ${data.stats.answeredToday} questions today`
     : `${data.stats.answeredToday} / ${data.stats.dailyGoal} questions today (${data.stats.goalPct}%)`;
 
   // weekly bars
@@ -1126,7 +1128,7 @@ async function renderDashboardData(data) {
 
   // adaptive difficulty summary line in the proficiency card
   const adaptEl = $('#dash-adaptive');
-  if (adaptEl) adaptEl.textContent = `Adaptive level: ${data.stats.adaptiveDiff} · skill rating ${data.stats.adaptiveRating} of 100 — questions adjust after every answer.`;
+  if (adaptEl) adaptEl.textContent = `Adaptive level: ${data.stats.adaptiveDiff} · skill rating ${data.stats.adaptiveRating} of 100, questions adjust after every answer.`;
 
   // per-topic proficiency ratings
   const profEl = $('#proficiency-list');
@@ -1161,7 +1163,7 @@ async function renderDashboardData(data) {
   } else {
     histEl.innerHTML = `<div class="empty-state">
       <span class="empty-ico">${ICONS.trophy}</span>
-      <p class="muted small">No full tests yet — a real digital-SAT length run awaits.</p>
+      <p class="muted small">No full tests yet, a real digital-SAT length run awaits.</p>
       <button class="btn btn-ghost empty-cta">Take a full test</button>
     </div>`;
     const cta3 = histEl.querySelector('.empty-cta');
@@ -1192,7 +1194,7 @@ async function renderDashboardData(data) {
   if (adminNav2) adminNav2.classList.toggle('hidden', !u.is_admin);
 
   $('#dash-tutor-status').textContent = data.tutor.provider + '.';
-  // premium plan + ad slots (free tier) — cache ads so they can be re-injected
+  // premium plan + ad slots (free tier), cache ads so they can be re-injected
   // when the user switches to the practice/test screens (ads render better in
   // a visible container)
   applyPlan(data.plan);
@@ -1217,9 +1219,12 @@ function resetPracticeMenu() {
   if (topHearts) topHearts.classList.add('hidden');
   $('#practice-menu').classList.remove('hidden');
   $('#practice-game').classList.add('hidden');
+  $('#ptest-session').classList.add('hidden');
+  $('#ptest-results').classList.add('hidden');
   // make sure the lesson path has proficiency data (fetch when not loaded yet)
   if (state.topicStats) renderLessonPath();
   else populateDrillPicker().catch(() => {});
+  loadPracticeTests(); // refresh the practice-test grid (best scores etc.)
 }
 
 function startGame(modeKey) {
@@ -1302,7 +1307,7 @@ async function loadQuestion() {
   $('#q-adaptive').textContent = 'Adaptive · L' + g.adaptiveDiff;
   $('#fb-prog').textContent = '';
   $('#calc-btn').classList.toggle('hidden', g.current.section !== 'math');
-  // 50/50 hint button — only when you own a hint (bought in the store)
+  // 50/50 hint button, only when you own a hint (bought in the store)
   const hintBtn = $('#hint-btn');
   if (hintBtn) {
     const ownsHint = state.store && state.store.items ? state.store.items.hint > 0 : true;
@@ -1443,10 +1448,10 @@ async function chooseAnswer(idx, gridValue) {
       prompt: g.current.prompt,
       topic: topicLabel(g.current.topic),
       yourAnswer: g.current.type === 'grid'
-        ? (gridValue || '—')
+        ? (gridValue || '-')
         : (idx === -1 ? 'Time ran out' : g.current.choices[idx]),
       correctAnswer: g.current.type === 'grid'
-        ? (result.answer !== undefined ? result.answer : '—')
+        ? (result.answer !== undefined ? result.answer : '-')
         : g.current.choices[result.correctIndex],
       explanation: result.explanation,
     });
@@ -1470,10 +1475,10 @@ async function chooseAnswer(idx, gridValue) {
     const up = result.adaptiveDiff > g.adaptiveDiff;
     g.adaptiveDiff = result.adaptiveDiff;
     if (up) {
-      toast('Difficulty up — next questions get harder');
+      toast('Difficulty up, next questions get harder');
       Sound.levelUp();
     } else {
-      toast('Difficulty eased — we\'ll rebuild your confidence');
+      toast('Difficulty eased, we\'ll rebuild your confidence');
     }
     $('#q-adaptive').textContent = 'Adaptive · L' + g.adaptiveDiff;
   }
@@ -1490,7 +1495,7 @@ async function chooseAnswer(idx, gridValue) {
   if (result.gemsEarned) {
     setTimeout(() => xpPop('+' + result.gemsEarned + ' gems', window.innerWidth * 0.7, 64), 320);
   }
-  if (result.boostUsed) toast('XP boost — double XP on this one');
+  if (result.boostUsed) toast('XP boost, double XP on this one');
   else if (result.shieldUsed) toast('Combo shield absorbed the miss');
   trackQuestAnswer(result.correct, result.xpEarned);
 
@@ -1502,14 +1507,14 @@ async function chooseAnswer(idx, gridValue) {
   for (const b of result.newBadges || []) {
     setTimeout(() => toast(`${b.name} unlocked`), 700);
   }  if (g.lives <= 0) {
-    // Free auto-refill — practice is never blocked by hearts.
+    // Free auto-refill, practice is never blocked by hearts.
     g.lives = g.mode.lives || 3;
     renderLives();
     const refillBtn = $('#refill-btn');
     if (refillBtn) refillBtn.classList.add('hidden');
-    mascotReact('happy', 'Hearts refilled — keep going!');
+    mascotReact('happy', 'Hearts refilled, keep going!');
     Sound.correct();
-    toast('Hearts refilled — free');
+    toast('Hearts refilled, free');
   }
   const btn = $('#next-btn');
   btn.textContent = g.index >= g.mode.count ? 'See results' : 'Next question';
@@ -1543,7 +1548,7 @@ function finishGame() {
   $('#results-title').textContent = accuracy >= 90 ? 'Outstanding' : accuracy >= 60 ? 'Solid round' : 'Keep grinding';
   $('#results-sub').textContent = grade.grade === 'F'
     ? 'Every miss is a lesson. Review the explanations and run it back.'
-    : `${g.mode.label} complete — ${grade.label.toLowerCase()} performance. You're building real SAT skills.`;
+    : `${g.mode.label} complete, ${grade.label.toLowerCase()} performance. You're building real SAT skills.`;
   $('#r-correct').textContent = g.correct;
   $('#r-total').textContent = g.index;
   $('#r-marks').textContent = g.marks;
@@ -1568,7 +1573,7 @@ function finishGame() {
   $('#r-xp').textContent = '+' + g.xp + ' XP';
   $('#badges-earned').innerHTML = '';
 
-  // Duolingo-style "review your misses" — every wrong question with the explanation
+  // Duolingo-style "review your misses", every wrong question with the explanation
   const revWrap = $('#round-review');
   const revList = $('#round-review-list');
   if (revWrap && revList) {
@@ -1593,7 +1598,7 @@ function finishGame() {
   countUp($('#r-xp'), g.xp, '+', ' XP');
   if (accuracy === 100) {
     $('#results-title').textContent = 'Perfect round';
-    $('#results-sub').textContent = 'Flawless — every answer correct. That\'s test-day energy.';
+    $('#results-sub').textContent = 'Flawless, every answer correct. That\'s test-day energy.';
     $('#results-emoji').innerHTML = ICONS.trophy;
     confetti(160);
   } else {
@@ -1648,32 +1653,58 @@ function groupState(g) {
   return { state: mastered ? 'completed' : 'inprogress', pct: avg };
 }
 
+// Duolingo-style lesson path. Nodes snake down the screen along a gentle sine
+// curve, linked by a dashed SVG trail, with a start flag and a finish trophy.
 function renderLessonPath() {
   const wrap = $('#lesson-path');
   if (!wrap) return;
   const nodes = DRILL_GROUPS.map((g) => ({ g, ...groupState(g) }));
   // first node that is not completed is 'current'; subsequent non-completed ones stay locked
   let foundCurrent = false;
-  const html = nodes.map((n) => {
-    let st = n.state;
-    if (st === 'completed') {
-      // done
-    } else if (!foundCurrent) {
-      st = 'current';
-      foundCurrent = true;
-    } else {
-      st = 'locked';
-    }
-    const icon = st === 'completed' ? ICONS.check : st === 'current' ? ICONS.zap : ICONS.lock;
-    const sub = n.pct !== null ? `${n.pct}% proficiency` : 'Not started';
-    const cta = st === 'current' ? '<span class="path-state"><span class="path-continue">Continue</span></span>' : `<span class="path-state">${icon}</span>`;
-    return `<button class="path-node ${st}" data-group="${n.g.label}">
-      <span class="path-ico">${n.g.label === 'Reading & Writing' ? ICONS.book : ICONS.calculator}</span>
-      <span class="path-body"><b>${n.g.label}</b><span class="path-sub">${sub}</span></span>
-      ${cta}
-    </button>`;
-  }).join('');
-  wrap.innerHTML = html;
+  const states = nodes.map((n) => {
+    if (n.state === 'completed') return 'completed';
+    if (!foundCurrent) { foundCurrent = true; return 'current'; }
+    return 'locked';
+  });
+  const count = nodes.length;
+  const startY = 108;
+  const step = 132;                       // vertical spacing between node centers
+  const H = startY + Math.max(1, count - 1) * step + 104; // headroom for start/finish markers
+  const amp = Math.min(20, Math.max(13, (wrap.clientWidth || 720) * 0.045)); // responsive sway (%)
+  const pts = nodes.map((n, i) => ({
+    x: +(50 + amp * Math.sin(0.8 + i * 0.85)).toFixed(2),
+    y: Math.round(startY + i * step),
+  }));
+  // smooth quadratic curve through the node centers
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1], c = pts[i];
+    const mx = +((p.x + c.x) / 2).toFixed(2);
+    const my = Math.round((p.y + c.y) / 2);
+    d += ` Q ${p.x} ${p.y} ${mx} ${my}`;
+  }
+  d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+
+  const start = pts[0], fin = pts[pts.length - 1];
+  wrap.style.height = H + 'px';
+  wrap.innerHTML = `
+    <svg class="path-line" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${d}"/>
+    </svg>
+    <div class="path-start" style="left:${start.x}%;top:${start.y - 52}px">${ICONS.flag}</div>
+    <div class="path-finish" style="left:${fin.x}%;top:${fin.y + 52}px">${ICONS.trophy}</div>
+    ${nodes.map((n, i) => {
+      const st = states[i];
+      const icon = st === 'completed' ? ICONS.check : st === 'current' ? ICONS.zap : ICONS.lock;
+      const sub = n.pct !== null ? `${n.pct}% proficiency` : 'Not started';
+      const cta = st === 'current' ? '<span class="path-state"><span class="path-continue">Continue</span></span>' : `<span class="path-state">${icon}</span>`;
+      return `<button class="path-node ${st}" data-group="${n.g.label}" style="left:${pts[i].x}%;top:${pts[i].y}px">
+        <span class="path-ico">${n.g.label === 'Reading & Writing' ? ICONS.book : ICONS.calculator}</span>
+        <span class="path-body"><b>${n.g.label}</b><span class="path-sub">${sub}</span></span>
+        ${cta}
+      </button>`;
+    }).join('')}
+  `;
   $$('#lesson-path .path-node').forEach((el) => el.addEventListener('click', () => {
     const g = DRILL_GROUPS.find((x) => x.label === el.dataset.group);
     if (!g) return;
@@ -1703,7 +1734,7 @@ function resetTestMenu() {
 }
 
 async function startFullTest() {
-  // Premium feature — server enforces it too.
+  // Premium feature, server enforces it too.
   if (isFreeUser()) { openUpgrade('premium'); return; }
   try {
     const { token, modules } = await api('/api/practice-test/start', { method: 'POST' });
@@ -1712,7 +1743,7 @@ async function startFullTest() {
     state.test = {
       token,
       modules: byKey,          // module key → module
-      flow: modules.map((m) => m.key), // ['rw1', 'math1'] — module 2s get appended later
+      flow: modules.map((m) => m.key), // ['rw1', 'math1'], module 2s get appended later
       moduleIdx: 0,
       qIdx: 0,
       answers: {},
@@ -1890,7 +1921,7 @@ function showTestBreak() {
   $('#test-break-title').textContent = half ? 'Halfway there' : 'Module complete';
   $('#test-break-sub').innerHTML = half
     ? 'Great pace. Stretch, breathe, then move on to the Math modules.'
-    : `Next up: <b>${next.name}</b>${t.levels[next.key] ? ` — this module is <b>${t.levels[next.key].toUpperCase()}</b> based on your Module 1 score.` : ''}`;
+    : `Next up: <b>${next.name}</b>${t.levels[next.key] ? `, this module is <b>${t.levels[next.key].toUpperCase()}</b> based on your Module 1 score.` : ''}`;
   $('#test-break-btn').textContent = half ? 'Start Math section' : 'Continue';
   Sound.click();
 }
@@ -1929,7 +1960,7 @@ function showTestResults(result) {
   } else {
     $('#scaled-score').textContent = result.scaled.total;
   }
-  // server band labels carry an emoji + exclamation mark — keep the UI calm
+  // server band labels carry an emoji + exclamation mark, keep the UI calm
   $('#score-band').textContent = result.band.label.replace(/[^\x20-\x7E]/g, '').replace(/!+$/, '').trim();
   $('#score-rw').textContent = result.scaled.rw;
   $('#score-rw-correct').textContent = `${result.rw.correct} / ${result.rw.total} correct`;
@@ -1939,7 +1970,7 @@ function showTestResults(result) {
   $('#test-review').innerHTML = result.detail
     .map((d, i) => `<div class="review-item">
       <span class="rev-ico">${d.correct ? ICONS.check : ICONS.x}</span>
-      <span class="rev-expl">${topicLabel(d.topic)} — ${escapeHtml(d.explanation)}</span>
+      <span class="rev-expl">${topicLabel(d.topic)}, ${escapeHtml(d.explanation)}</span>
     </div>`)
     .join('');
 
@@ -1962,6 +1993,231 @@ function normalizeLocal(v) {
   return Number.isFinite(num) ? num.toFixed(4) : null;
 }
 
+// ── Focused practice tests (12 themed tests, instant answer checking) ────
+let ptestCache = null;   // test list from /api/practice-tests
+let ptestCacheAt = 0;    // ms timestamp of the last fetch (60s TTL)
+
+async function loadPracticeTests() {
+  // reuse the cached list for a minute so every practice-view visit doesn't
+  // fire a redundant network request
+  if (ptestCache && Date.now() - ptestCacheAt < 60000) {
+    renderPracticeTests();
+    return;
+  }
+  try {
+    const data = await api('/api/practice-tests');
+    ptestCache = data.tests || [];
+    ptestCacheAt = Date.now();
+    renderPracticeTests();
+  } catch (err) {
+    if (err.upgrade) return;
+    const grid = $('#ptest-grid');
+    if (grid) grid.innerHTML = '<p class="muted small">Could not load practice tests.</p>';
+  }
+}
+
+const PTEST_ICONS = { calculator: ICONS.calculator, book: ICONS.book, star: ICONS.star };
+
+function renderPracticeTests() {
+  const grid = $('#ptest-grid');
+  if (!grid || !ptestCache) return;
+  if (!ptestCache.length) { grid.innerHTML = '<p class="muted small">No practice tests available.</p>'; return; }
+  grid.innerHTML = ptestCache.map((t, i) => `
+    <button class="ptest-card" data-test="${t.id}" style="animation-delay:${i * 40}ms">
+      <span class="ptest-ico">${PTEST_ICONS[t.icon] || ICONS.zap}</span>
+      <span class="ptest-body">
+        <b>${t.title}</b>
+        <span class="ptest-tagline">${t.tagline}</span>
+        <span class="ptest-meta muted small">${t.count} questions · ${t.section === 'math' ? 'Math' : t.section === 'reading' ? 'Reading' : 'Mixed'}${t.best !== null ? ` · Best ${t.best}%` : ''}</span>
+      </span>
+      <span class="ptest-cta">Start</span>
+    </button>`).join('');
+  $$('.ptest-card').forEach((card) => card.addEventListener('click', () => startPracticeTest(card.dataset.test)));
+}
+
+async function startPracticeTest(testId) {
+  Sound.click();
+  try {
+    const { token, test, questions } = await api('/api/practice-tests/start', { method: 'POST', body: { testId } });
+    state.ptest = { token, test, questions, qIdx: 0, answers: {}, locked: false };
+    $('#practice-menu').classList.add('hidden');
+    $('#ptest-results').classList.add('hidden');
+    $('#ptest-session').classList.remove('hidden');
+    $('#ptest-title').textContent = test.title;
+    renderPtestQuestion();
+  } catch (err) {
+    toast(err.message || 'Could not start the test.');
+  }
+}
+
+function renderPtestQuestion() {
+  const p = state.ptest;
+  if (!p) return;
+  const q = p.questions[p.qIdx];
+  p.locked = false;
+  $('#ptest-label').textContent = `Question ${p.qIdx + 1} of ${p.questions.length}`;
+  $('#ptest-progress').style.width = ((p.qIdx + 1) / p.questions.length) * 100 + '%';
+  $('#ptest-q-section').textContent = q.section === 'math' ? 'Math' : 'Reading';
+  $('#ptest-q-topic').textContent = topicLabel(q.topic);
+  $('#ptest-q-difficulty').textContent = '★'.repeat(q.difficulty) + '☆'.repeat(5 - q.difficulty);
+  $('#ptest-q-difficulty').classList.toggle('hard', q.difficulty === 3);
+  $('#ptest-q-text').textContent = q.prompt;
+  $('#ptest-feedback').classList.add('hidden');
+  if (q.type === 'grid') {
+    $('#ptest-q-choices').innerHTML = `<div class="grid-input-wrap">
+      <input class="grid-input" id="ptest-grid-answer" type="text" inputmode="numeric" autocomplete="off" placeholder="Type answer" />
+      <p class="grid-hint">Enter a numeric answer.</p>
+    </div>`;
+    const input = $('#ptest-grid-answer');
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') answerPtestQuestion(null, input.value.trim()); });
+    setTimeout(() => input.focus(), 60);
+  } else {
+    const letters = ['A', 'B', 'C', 'D'];
+    $('#ptest-q-choices').innerHTML = q.choices
+      .map((c, i) => `<button class="choice" data-idx="${i}"><span class="letter">${letters[i]}</span><span>${c}</span></button>`)
+      .join('');
+    $$('#ptest-q-choices .choice').forEach((b) => b.addEventListener('click', () => answerPtestQuestion(parseInt(b.dataset.idx, 10), null)));
+  }
+}
+
+function answerPtestQuestion(idx, gridValue) {
+  const p = state.ptest;
+  if (!p || p.locked) return;
+  p.locked = true;
+  const q = p.questions[p.qIdx];
+  const userAns = gridValue !== null && gridValue !== undefined && gridValue !== ''
+    ? gridValue
+    : (idx !== null && idx !== undefined ? idx : null);
+  if (userAns !== null) p.answers[q.id] = userAns;
+  const correct = q.type === 'grid'
+    ? normalizeLocal(gridValue) === normalizeLocal(q._answer)
+    : idx === q._correct;
+
+  $('#ptest-fb-head').innerHTML = correct ? ICONS.check + ' Correct' : ICONS.x + ' Not quite';
+  $('#ptest-fb-expl').textContent = q.explanation;
+  const fb = $('#ptest-feedback');
+  fb.classList.toggle('wrong-fb', !correct);
+  fb.classList.remove('hidden');
+  $('#ptest-next-btn').textContent = p.qIdx + 1 >= p.questions.length ? 'See my score' : 'Next question';
+
+  $('#ptest-question-card').querySelectorAll('.choice').forEach((el, i) => {
+    el.disabled = true;
+    if (i === q._correct) el.classList.add('correct');
+    else if (i === idx) el.classList.add('wrong');
+    else el.classList.add('dim');
+  });
+  correct ? Sound.correct() : Sound.wrong();
+}
+
+function nextPtestQuestion() {
+  const p = state.ptest;
+  if (!p) return;
+  p.qIdx++;
+  if (p.qIdx >= p.questions.length) { finishPracticeTest(); return; }
+  renderPtestQuestion();
+}
+
+async function finishPracticeTest() {
+  const p = state.ptest;
+  if (!p) return;
+  try {
+    const result = await api('/api/practice-tests/submit', { method: 'POST', body: { token: p.token, answers: p.answers } });
+    showPtestResults(result);
+  } catch (err) {
+    toast(err.message || 'Could not score the test.');
+  }
+}
+
+function showPtestResults(result) {
+  const p = state.ptest;
+  state.ptest = null;
+  $('#ptest-session').classList.add('hidden');
+  const C = 2 * Math.PI * 52;
+  const ring = $('#ptest-results-ring');
+  ring.style.strokeDasharray = String(C);
+  ring.style.strokeDashoffset = String(C);
+  void ring.getBoundingClientRect();
+  requestAnimationFrame(() => {
+    ring.style.strokeDashoffset = String(C * (1 - result.pct / 100));
+    countUp($('#ptest-results-pct'), result.pct, '', '%');
+  });
+  $('#ptest-results-correct').textContent = result.correct;
+  $('#ptest-results-total').textContent = result.total;
+  $('#ptest-results-grade').textContent = result.grade ? result.grade.grade : 'A';
+  $('#ptest-results-title').textContent = p ? `${p.test.title} complete` : 'Test complete';
+  $('#ptest-results-sub').textContent = `${result.correct} of ${result.total} correct, ${result.pct}% accuracy`;
+  $('#ptest-results-emoji').innerHTML = result.pct >= 80 ? ICONS.trophy : result.pct >= 50 ? ICONS.zap : ICONS.book;
+  const misses = (result.detail || []).filter((d) => !d.correct);
+  const review = $('#ptest-review');
+  if (misses.length) {
+    review.classList.remove('hidden');
+    $('#ptest-review-list').innerHTML = misses.map((d) => `<div class="review-item">
+      <span class="rev-ico">${ICONS.x}</span>
+      <span class="rev-expl">${topicLabel(d.topic)}, ${escapeHtml(d.explanation)}</span>
+    </div>`).join('');
+  } else {
+    review.classList.add('hidden');
+  }
+  $('#ptest-retry-btn').onclick = () => { if (p) startPracticeTest(p.test.id); };
+  $('#ptest-results').classList.remove('hidden');
+  Sound.finish();
+  if (result.pct >= 80) confetti(90);
+}
+
+function quitPracticeTest() {
+  if (state.ptest && confirm('Quit this practice test? Your score will not be saved.')) {
+    state.ptest = null;
+    resetPracticeMenu();
+  }
+}
+
+// ── Stats page ────────────────────────────────────────────────────────────
+async function loadStats() {
+  const data = await api('/api/stats');
+  const a = data.aggregate || {};
+  $('#stats-summary').innerHTML = `
+    <div class="stat-chip"><span class="stat-chip-num">${a.practiceCount || 0}</span><span class="stat-chip-label">Practice tests</span></div>
+    <div class="stat-chip"><span class="stat-chip-num">${a.practiceAvg || 0}%</span><span class="stat-chip-label">Avg accuracy</span></div>
+    <div class="stat-chip accent"><span class="stat-chip-num">${a.practiceBest || 0}%</span><span class="stat-chip-label">Best accuracy</span></div>
+    <div class="stat-chip"><span class="stat-chip-num">${a.fullCount || 0}</span><span class="stat-chip-label">Full tests</span></div>
+    <div class="stat-chip accent"><span class="stat-chip-num">${a.fullBest || 0}</span><span class="stat-chip-label">Best scaled</span></div>
+    <div class="stat-chip"><span class="stat-chip-num">${a.fullAvg || 0}</span><span class="stat-chip-label">Avg scaled</span></div>`;
+
+  const practice = data.practiceTests || [];
+  $('#stats-practice').innerHTML = practice.length
+    ? practice.map((t) => `<div class="test-entry">
+        <span class="test-score-num ${t.pct >= 70 ? 'good' : t.pct >= 50 ? '' : 'low'}">${t.pct}%</span>
+        <div class="test-entry-meta">
+          <div>${escapeHtml(t.test_title)}</div>
+          <div class="t">${t.correct}/${t.total} correct · ${(t.created_at || '').slice(0, 10)}</div>
+        </div>
+      </div>`).join('')
+    : '<p class="muted small">No practice tests taken yet. Try one from the Practice tab.</p>';
+
+  const full = data.fullTests || [];
+  $('#stats-full').innerHTML = full.length
+    ? full.map((t) => `<div class="test-entry">
+        <span class="test-score-num">${t.scaled_score}</span>
+        <div class="test-entry-meta">
+          <div>${t.rw_correct}/${t.rw_total} R&W, ${t.math_correct}/${t.math_total} Math</div>
+          <div class="t">${(t.created_at || '').slice(0, 10)}</div>
+        </div>
+      </div>`).join('')
+    : '<p class="muted small">No full tests taken yet. Try one from the Full test tab.</p>';
+
+  const bars = $('#stats-bars');
+  if (practice.length) {
+    const recent = practice.slice(0, 10).reverse();
+    bars.innerHTML = `<div class="stats-bars-inner">${recent.map((t) => `
+      <div class="stat-bar-col" title="${escapeHtml(t.test_title)}: ${t.pct}%">
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="height:${t.pct}%"></div></div>
+        <span class="stat-bar-label">${t.pct}%</span>
+      </div>`).join('')}</div>`;
+  } else {
+    bars.innerHTML = '<p class="muted small">Finish a practice test to see your trend here.</p>';
+  }
+}
+
 // ── Store (gem economy) ───────────────────────────────────────────────────
 const STORE_ICONS = { heart: ICONS.heart, hint: ICONS.star, freeze: ICONS.flame, boost: ICONS.zap, shield: ICONS.trophy };
 
@@ -1982,7 +2238,7 @@ function renderStore(data) {
   const banner = $('#store-banner');
   if (banner) {
     banner.classList.remove('hidden');
-    banner.innerHTML = `${ICONS.gem}<span>Spend your gems on power-ups — earn more by practicing.</span>`;
+    banner.innerHTML = `${ICONS.gem}<span>Spend your gems on power-ups, earn more by practicing.</span>`;
     banner.classList.remove('admin');
   }
 
@@ -2010,7 +2266,7 @@ function renderStore(data) {
   if (ownedEl) {
     const owned = data.catalog.filter((c) => c.owned > 0);
     const boostLine = data.xpBoost > 0
-      ? `<div class="owned-chip active"><span class="chip-ico">${ICONS.zap}</span>XP boost active — ${data.xpBoost} questions left</div>`
+      ? `<div class="owned-chip active"><span class="chip-ico">${ICONS.zap}</span>XP boost active, ${data.xpBoost} questions left</div>`
       : '';
     const boostItem = data.catalog.find((c) => c.id === 'boost');
     const boostActivate = !data.xpBoost && boostItem && boostItem.owned > 0
@@ -2018,7 +2274,7 @@ function renderStore(data) {
       : '';
     ownedEl.innerHTML = (owned.length || data.xpBoost > 0 || boostActivate)
       ? `<div class="owned-row">${boostLine}${owned.map((c) => `<div class="owned-chip"><span class="chip-ico">${STORE_ICONS[c.icon] || ICONS.gem}</span>${c.name} ×${c.owned}</div>`).join('')}</div>${boostActivate}`
-      : '<p class="muted small">Nothing yet — grab a power-up above.</p>';
+      : '<p class="muted small">Nothing yet, grab a power-up above.</p>';
     const act = ownedEl.querySelector('[data-activate-boost]');
     if (act) act.addEventListener('click', activateBoost);
   }
@@ -2076,7 +2332,7 @@ async function buyItem(itemId) {
 async function checkoutPack() {
   // Real-money packs are off. Kept as a no-op so stale pack buttons can't
   // error; gems come from practicing.
-  toast('Gem packs are off — earn gems by practicing');
+  toast('Gem packs are off, earn gems by practicing');
 }
 
 // 50/50: server removes two wrong answers (never leaks the correct index)
@@ -2109,7 +2365,7 @@ async function activateBoost() {
   try {
     const r = await api('/api/store/use', { method: 'POST', body: { itemId: 'boost' } });
     if (r.ok) {
-      toast(`XP boost activated — ${r.boost} questions of double XP`);
+      toast(`XP boost activated, ${r.boost} questions of double XP`);
       Sound.finish();
       loadStore().catch(() => {});
     } else {
@@ -2129,9 +2385,9 @@ async function refillHearts() {
     renderLives();
     const refillBtn = $('#refill-btn');
     if (refillBtn) refillBtn.classList.add('hidden');
-    mascotReact('happy', 'Hearts restored — keep going');
+    mascotReact('happy', 'Hearts restored, keep going');
     Sound.correct();
-    loadStore().catch(() => {}); // hearts inventory decremented — refresh
+    loadStore().catch(() => {}); // hearts inventory decremented, refresh
     const btn = $('#next-btn');
     btn.textContent = g.index >= g.mode.count ? 'See results' : 'Next question';
     btn.onclick = () => { if (g.index >= g.mode.count) finishGame(); else loadQuestion(); };
@@ -2230,7 +2486,7 @@ function closeCalculator() {
 
 // letter grade + label from a percentage of marks (mirrors the server)
 function gradeForPct(pct) {
-  if (pct >= 95) return { grade: 'S', label: 'Elite' };
+  if (pct >= 95) return { grade: 'S', label: 'Outstanding' };
   if (pct >= 85) return { grade: 'A', label: 'Excellent' };
   if (pct >= 70) return { grade: 'B', label: 'Strong' };
   if (pct >= 55) return { grade: 'C', label: 'Solid' };
@@ -2274,7 +2530,7 @@ async function loadLeaderboard() {
         <td class="xp-cell">${r.xp.toLocaleString()}</td>
       </tr>`;
     })
-    .join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:30px">No players yet — be the first</td></tr>';
+    .join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:30px">No players yet, be the first</td></tr>';
 }
 
 // ── Admin panel (control center) ───────────────────────────────────────────
@@ -2324,7 +2580,7 @@ async function loadAdminPanel() {
     // Users table
     $('#admin-users-body').innerHTML = users
       .map((u) => {
-        const acc = u.total_answers > 0 ? Math.round((u.correct_answers / u.total_answers) * 100) + '%' : '—';
+        const acc = u.total_answers > 0 ? Math.round((u.correct_answers / u.total_answers) * 100) + '%' : '-';
         const isAdmin = u.is_admin ? '<span class="tag admin-badge">Admin</span>' : '<span class="muted small">User</span>';
         const planBadge = u.is_admin || u.plan === 'premium'
           ? '<span class="tag premium-badge">Premium</span>'
@@ -2357,7 +2613,7 @@ async function loadAdminPanel() {
       btn.addEventListener('click', () => loadAdminUserDetail(parseInt(btn.dataset.userId, 10)))
     );
 
-    // Plan grant/revoke (event delegation — rows re-render)
+    // Plan grant/revoke (event delegation, rows re-render)
     $('#admin-users-body').addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-plan-action]');
       if (!btn) return;
@@ -2437,10 +2693,11 @@ function renderConfigStatus(status) {
 
 async function loadAdminConfig() {
   const { config, status } = await api('/api/admin/config');
-  // Only prefill non-secret fields. Secrets stay empty — the saved/masked
+  // Only prefill non-secret fields. Secrets stay empty, the saved/masked
   // value is shown as a hint so an untouched Save never overwrites the real
   // key with masked text (empty = "keep current" on the server).
   $('#cfg-app-url').value = config.app_url || '';
+  $('#cfg-gemini-model').value = config.gemini_model || '';
   $('#cfg-groq-model').value = config.groq_model || '';
   $('#cfg-email-from').value = config.email_from || '';
   $('#cfg-smtp-host').value = config.smtp_host || '';
@@ -2466,11 +2723,12 @@ async function loadAdminConfig() {
   $$('input[name="ads-network"]').forEach((r) => { r.checked = r.value === net; });
   const setHint = (id, masked) => {
     const el = $(id);
-    if (el) el.textContent = masked ? `Saved: ${masked} — leave blank to keep.` : 'Not set.';
+    if (el) el.textContent = masked ? `Saved: ${masked}, leave blank to keep.` : 'Not set.';
   };
   setHint('#cfg-google-client-id-hint', config.google_client_id);
   setHint('#cfg-google-client-secret-hint', config.google_client_secret);
   setHint('#cfg-gemini-key-hint', config.gemini_api_key);
+  setHint('#cfg-gemini-model-hint', config.gemini_model ? `Model: ${config.gemini_model}` : 'Not set.');
   setHint('#cfg-groq-key-hint', config.groq_api_key);
   setHint('#cfg-resend-key-hint', config.resend_api_key);
   setHint('#cfg-smtp-pass-hint', config.smtp_pass);
@@ -2492,12 +2750,13 @@ async function saveAdminConfig() {
   try {
     const body = {};
     const clears = [];
-    // Only send fields the admin actually typed — empty = keep current
+    // Only send fields the admin actually typed, empty = keep current
     const pairs = [
       ['google_client_id', $('#cfg-google-client-id')],
       ['google_client_secret', $('#cfg-google-client-secret')],
       ['app_url', $('#cfg-app-url')],
       ['gemini_api_key', $('#cfg-gemini-key')],
+      ['gemini_model', $('#cfg-gemini-model')],
       ['groq_api_key', $('#cfg-groq-key')],
       ['groq_model', $('#cfg-groq-model')],
       ['resend_api_key', $('#cfg-resend-key')],
@@ -2526,14 +2785,14 @@ async function saveAdminConfig() {
     if (clears.length) body.clear = clears;
     if (!Object.keys(body).length) {
       const msg = $('#cfg-saved-msg');
-      msg.textContent = 'Type a value first — blank fields keep their current setting.';
+      msg.textContent = 'Type a value first, blank fields keep their current setting.';
       msg.style.color = 'var(--muted)';
       return;
     }
     const { status } = await api('/api/admin/config', { method: 'POST', body });
     renderConfigStatus(status);
     const msg = $('#cfg-saved-msg');
-    msg.textContent = 'Saved — changes are live now.';
+    msg.textContent = 'Saved, changes are live now.';
     msg.style.color = 'var(--success)';
     toast('Integrations saved');
     Sound.click();
@@ -2551,7 +2810,7 @@ async function saveAdminConfig() {
 async function clearAdminConfig(keys) {
   try {
     await api('/api/admin/config', { method: 'POST', body: { clear: keys } });
-    toast('Keys cleared — env fallback (if any) is active');
+    toast('Keys cleared, env fallback (if any) is active');
     Sound.click();
     await loadAdminConfig();
   } catch (err) {
@@ -2683,8 +2942,8 @@ function openSettings() {
   const hasKey = Boolean(u.has_gemini_key);
   const statusEl = $('#ai-key-status');
   statusEl.textContent = hasKey
-    ? 'Connected — SAT Sage uses your free Gemini key.'
-    : 'Not connected — the built-in tutor is active. Paste a key to unlock the real AI.';
+    ? 'Connected. SAT Sage uses your free Gemini key.'
+    : 'Not connected. The built-in tutor is active; paste a key to unlock the real AI.';
   statusEl.classList.toggle('connected', hasKey);
   $('#clear-ai-key-btn').classList.toggle('hidden', !hasKey);
   $('#settings-error').textContent = '';
@@ -2704,7 +2963,7 @@ async function saveSettings() {
   try {
     const { user } = await api('/api/settings', { method: 'POST', body });
     state.user = user;
-    toast(gemini_key ? 'Free AI connected — SAT Sage is powered up' : 'Settings saved');
+    toast(gemini_key ? 'Free AI connected. SAT Sage is powered up' : 'Settings saved');
     Sound.click();
     closeSettings();
     refreshTutorStatus();
@@ -2719,9 +2978,9 @@ async function removeAiKey() {
     const { user } = await api('/api/settings', { method: 'POST', body: { gemini_key: null } });
     state.user = user;
     $('#set-ai-key').value = '';
-    $('#ai-key-status').textContent = 'Not connected — the built-in tutor is active.';
+    $('#ai-key-status').textContent = 'Not connected. The built-in tutor is active.';
     $('#clear-ai-key-btn').classList.add('hidden');
-    toast('AI key removed — back to the built-in tutor');
+    toast('AI key removed, back to the built-in tutor');
     refreshTutorStatus();
   } catch (err) {
     $('#settings-error').textContent = err.message;
@@ -2731,6 +2990,9 @@ async function removeAiKey() {
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   applyTheme();
+  // speaker icon must show the current sound state on load (not only after a click)
+  const soundBtn = $('#sound-btn');
+  if (soundBtn) soundBtn.innerHTML = state.soundOn ? ICONS.volume : ICONS.mute;
   initAuth();
   initPasswordToggles();
   // show premium prices in the visitor's local currency (fire-and-forget)
@@ -2751,7 +3013,7 @@ async function init() {
   // landing page CTAs → open auth with the right tab (login or signup)
   $$('[data-landing-auth]').forEach((b) => b.addEventListener('click', () => { Sound.click(); openAuth(b.dataset.landingAuth); }));
 
-  // landing page section links (#features / #pricing / #faq) — smooth-scroll
+  // landing page section links (#features / #pricing / #faq), smooth-scroll
   // instead of changing the hash, which would confuse the #/view router.
   $$('.landing-nav-links a').forEach((a) => a.addEventListener('click', (e) => {
     e.preventDefault();
@@ -2788,6 +3050,10 @@ async function init() {
     $('#test-active').classList.remove('hidden');
     startTestModule(); // fresh module countdown
   });
+
+  // focused practice tests
+  $('#ptest-next-btn').addEventListener('click', () => { Sound.click(); nextPtestQuestion(); });
+  $('#ptest-quit-btn').addEventListener('click', quitPracticeTest);
 
   // Desmos calculator toggles
   $('#calc-btn').addEventListener('click', () => toggleCalculator($('#calc-btn'), '#calc-panel', '#calc-embed'));
@@ -2885,7 +3151,7 @@ async function init() {
     btn.textContent = 'Sending…';
     try {
       const r = await api('/api/admin/test-email', { method: 'POST', body: { to } });
-      resultEl.textContent = 'Email sent via ' + (r.via || 'provider') + ' — check the inbox (and spam folder).';
+      resultEl.textContent = 'Email sent via ' + (r.via || 'provider') + ', check the inbox (and spam folder).';
       resultEl.style.color = 'var(--success)';
       Sound.correct();
     } catch (err) {

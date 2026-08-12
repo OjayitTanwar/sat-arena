@@ -168,10 +168,23 @@ CREATE TABLE IF NOT EXISTS test_scores (
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Focused practice tests (12 themed tests): one row per completed attempt
+CREATE TABLE IF NOT EXISTS practice_test_scores (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  test_id       TEXT NOT NULL,
+  test_title    TEXT NOT NULL,
+  correct       INTEGER NOT NULL DEFAULT 0,
+  total         INTEGER NOT NULL DEFAULT 0,
+  pct           INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_answers_user ON answers(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_answers_topic ON answers(user_id, topic);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_tests_user ON test_scores(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ptests_user ON practice_test_scores(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_topic_stats_user ON topic_stats(user_id, attempts);
 CREATE INDEX IF NOT EXISTS idx_gem_tx_user ON gem_tx(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON store_orders(user_id, id);
@@ -255,9 +268,9 @@ async function migrateAndSeed(b) {
 
   // Seed admin user. Credentials come from env vars (see .env.example) so no
   // password ever ships in source:
-  //   ADMIN_EMAIL    — admin login email (default keeps existing installs working)
-  //   ADMIN_USERNAME — display name (default 'admin')
-  //   ADMIN_PASSWORD — NO default. While set, the seed FORCE-SETS the admin's
+  //   ADMIN_EMAIL   , admin login email (default keeps existing installs working)
+  //   ADMIN_USERNAME, display name (default 'admin')
+  //   ADMIN_PASSWORD, NO default. While set, the seed FORCE-SETS the admin's
   //                    password to this value on every start (guaranteed access,
   //                    like the old hardcoded seed). When unset, an existing
   //                    admin's password is left untouched (a restart no longer
@@ -279,12 +292,12 @@ async function migrateAndSeed(b) {
     if (!salt || !hash) return false;
     const expected = Buffer.from(hash, 'hex');
     const candidate = crypto.scryptSync(pw, salt, 64);
-    // timingSafeEqual throws on length mismatch — never let a malformed hash
+    // timingSafeEqual throws on length mismatch, never let a malformed hash
     // crash the seed (this runs on every boot).
     return expected.length === candidate.length && crypto.timingSafeEqual(expected, candidate);
   }
 
-  // email/username are UNIQUE — these checks keep the seed from ever crashing
+  // email/username are UNIQUE, these checks keep the seed from ever crashing
   // startup on a collision (e.g. a regular user who registered "admin").
   async function emailFree(email, excludeId) {
     const row = await b.prepare('SELECT id FROM users WHERE email = ?').get(email);
@@ -303,7 +316,7 @@ async function migrateAndSeed(b) {
   // 1) A user with the env email already exists → guarantee admin + password.
   let existing = await b.prepare(`SELECT ${ADMIN_FIELDS} FROM users WHERE email = ?`).get(ADMIN_EMAIL);
 
-  // 2) Otherwise promote the current admin (covers a changed ADMIN_EMAIL —
+  // 2) Otherwise promote the current admin (covers a changed ADMIN_EMAIL -
   //    never create a second admin).
   if (!existing) {
     existing = await b.prepare(`SELECT ${ADMIN_FIELDS} FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1`).get();
@@ -314,7 +327,7 @@ async function migrateAndSeed(b) {
           await b.prepare('UPDATE users SET email = ? WHERE id = ?').run(ADMIN_EMAIL, existing.id);
           changed = true;
         } else {
-          console.log('⚠  ADMIN_EMAIL is already registered to another user — keeping admin email ' + existing.email);
+          console.log('⚠  ADMIN_EMAIL is already registered to another user, keeping admin email ' + existing.email);
         }
       }
       if (existing.username !== ADMIN_USERNAME && await usernameFree(ADMIN_USERNAME, existing.id)) {
@@ -342,7 +355,7 @@ async function migrateAndSeed(b) {
       await b.prepare('UPDATE users SET username = ? WHERE id = ?').run(ADMIN_USERNAME, existing.id);
       changed = true;
     }
-    // Only force-reset the password when ADMIN_PASSWORD is explicitly set —
+    // Only force-reset the password when ADMIN_PASSWORD is explicitly set -
     // otherwise respect whatever the owner changed it to.
     if (ADMIN_PASSWORD && !scryptVerify(ADMIN_PASSWORD, existing.password_hash)) {
       await setPassword(existing.id, ADMIN_PASSWORD);
@@ -353,20 +366,20 @@ async function migrateAndSeed(b) {
     return;
   }
 
-  // 4) Brand-new install — create the admin. Guard the UNIQUE username so a
+  // 4) Brand-new install, create the admin. Guard the UNIQUE username so a
   //    regular user who already took "admin" can never crash the boot seed.
   let username = ADMIN_USERNAME;
   if (!(await usernameFree(username, null))) {
     username = ADMIN_USERNAME + '_' + crypto.randomBytes(3).toString('hex');
-    console.log('⚠  Username "' + ADMIN_USERNAME + '" is taken — creating admin as "' + username + '". Set ADMIN_USERNAME in .env to control it.');
+    console.log('⚠  Username "' + ADMIN_USERNAME + '" is taken, creating admin as "' + username + '". Set ADMIN_USERNAME in .env to control it.');
   }
   if (!ADMIN_PASSWORD) {
-    // No env password and no existing admin — create one with a random
+    // No env password and no existing admin, create one with a random
     // password and print it once (this line is the only place it appears).
     const generated = crypto.randomBytes(12).toString('base64url'); // ~16 chars, URL-safe
     await b.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
       .run(username, ADMIN_EMAIL, scryptHash(generated));
-    console.log('⚠  Admin created with a RANDOM password — set ADMIN_PASSWORD in .env to control it.');
+    console.log('⚠  Admin created with a RANDOM password, set ADMIN_PASSWORD in .env to control it.');
     console.log('   email:    ' + ADMIN_EMAIL);
     console.log('   username: ' + username);
     console.log('   password: ' + generated + '  (shown only once, on first creation)');
@@ -393,7 +406,7 @@ function ensureReady() {
   return _ready;
 }
 
-// Public facade — sync `prepare(sql)` returning a statement whose methods are
+// Public facade, sync `prepare(sql)` returning a statement whose methods are
 // async in both modes, so every call site just needs `await`.
 function prepare(sql) {
   return {

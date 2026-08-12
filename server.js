@@ -1,7 +1,7 @@
 'use strict';
 
 // Load .env if present (Node >= 20.12 built-in)
-try { process.loadEnvFile(); } catch { /* no .env file — fine */ }
+try { process.loadEnvFile(); } catch { /* no .env file, fine */ }
 
 const express = require('express');
 const crypto = require('node:crypto');
@@ -9,9 +9,10 @@ const path = require('node:path');
 
 const db = require('./db');
 const { generateQuestion, generateQuestionByTopic, generateSet, generateTestModule, computeScaledScore, scoreBand } = require('./lib/questions');
-const { levelProgress, xpAward, nextCombo, checkBadges, BADGES, levelFromXp, updateRating, nextDifficulty, proficiencyLevel, marksForAnswer, testGrade } = require('./lib/gamification');
+const { levelProgress, xpAward, nextCombo, checkBadges, BADGES, levelFromXp, updateRating, nextDifficulty, proficiencyLevel, marksForAnswer, testGrade, gradeForPct } = require('./lib/gamification');
 const { tutorReply, tutorStatus } = require('./lib/ai-tutor');
 const { getConfig, setConfig, maskSecret } = require('./lib/config');
+const { PRACTICE_TESTS, generatePracticeTestQuestions } = require('./lib/practice-tests');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,7 +23,7 @@ const SESSION_DAYS = 30;
 const questionCache = new Map();
 const CACHE_MAX = 2000;
 
-// Per-user sets of question ids already answered — gates combo-gem rewards so
+// Per-user sets of question ids already answered, gates combo-gem rewards so
 // replaying one cached question can't farm gems. (In-memory is fine: a restart
 // just allows the occasional duplicate, same as the question cache.)
 const answeredQuestionIds = new Map();
@@ -31,6 +32,9 @@ const ANSWERED_CAP = 2000;
 // Active practice-test sessions: token -> { modules, answers }
 const testSessions = new Map();
 const TEST_MAX = 100;
+
+// Active focused-practice-test sessions: token -> { userId, testId, def, questions }
+const ptestSessions = new Map();
 
 // ── Store catalog + gem economy ────────────────────────────────────────────
 // Items are consumable power-ups bought with gems. The admin account gets
@@ -81,10 +85,10 @@ function generateOtp() {
 }
 
 // Send an email. Three paths, in priority order:
-//   1. SMTP (any provider — Gmail app password, SMTP2GO, Brevo, Zoho…) — free
+//   1. SMTP (any provider, Gmail app password, SMTP2GO, Brevo, Zoho…), free
 //      and works TODAY without a verified domain, so it wins when configured.
 //   2. Resend API (needs a verified sending domain for external recipients).
-//   3. DEV mode: no provider configured — the code is returned in the
+//   3. DEV mode: no provider configured, the code is returned in the
 //      response so signup/reset flows still work locally.
 async function sendEmail(to, subject, html) {
   const c = await getConfig();
@@ -270,7 +274,7 @@ async function authRequired(req, res, next) {
   try {
     user = await getSessionUser(req);
   } catch (e) {
-    // Express 4 doesn't catch async errors — keep the 500 contract instead
+    // Express 4 doesn't catch async errors, keep the 500 contract instead
     // of leaving the client's request hanging.
     console.error('Auth lookup failed:', e && e.message ? e.message : e);
     return res.status(500).json({ error: 'Something went wrong.' });
@@ -294,10 +298,10 @@ async function adminRequired(req, res, next) {
   next();
 }
 
-// ── FormPost webhook (optional — logs auth events to formpost.ai) ──────────
+// ── FormPost webhook (optional, logs auth events to formpost.ai) ──────────
 const FORMPOST_URL = 'https://submit.formpost.ai/2usoeqa5';
 function postToFormpost(data) {
-  // Fire-and-forget — never blocks the response
+  // Fire-and-forget, never blocks the response
   fetch(FORMPOST_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -319,7 +323,7 @@ app.use((req, _res, next) => {
 // with purpose=signup) so accounts are only created from real inboxes.
 app.post('/api/auth/signup', async (req, res) => {
   const { username, email, password, otp } = req.body || {};
-  if (!validateUsername(username)) return res.status(400).json({ error: 'Username must be 3–20 characters (letters, numbers, underscore).' });
+  if (!validateUsername(username)) return res.status(400).json({ error: 'Username must be 3-20 characters (letters, numbers, underscore).' });
   if (!validateEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
   if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
@@ -451,7 +455,7 @@ app.get('/api/live-url', (_req, res) => {
 
 // ── Question routes ────────────────────────────────────────────────────────
 
-// Generates questions ON THE SPOT — every request returns fresh, unique questions.
+// Generates questions ON THE SPOT, every request returns fresh, unique questions.
 // ?section=math|reading, ?topic=<exact topic> for drills, ?count=1..5
 // ?adaptive=1 uses the user's server-tracked adaptive difficulty; otherwise
 // ?difficulty=1|2|3 forces a level explicitly.
@@ -461,7 +465,7 @@ app.get('/api/question', authRequired, async (req, res) => {
     const used = await todayAnswerCount(req.user.id);
     if (used >= FREE_DAILY_QUESTIONS) {
       return res.status(402).json({
-        error: `You've used your ${FREE_DAILY_QUESTIONS} free questions today — go premium for unlimited practice.`,
+        error: `You've used your ${FREE_DAILY_QUESTIONS} free questions today. Go premium for unlimited practice.`,
         upgrade: true, code: 'daily_limit',
         plan: { dailyUsed: used, dailyLimit: FREE_DAILY_QUESTIONS },
       });
@@ -523,10 +527,10 @@ app.post('/api/answer', authRequired, async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
 
   // Combo is tracked server-side so a scripted client can't fake it. A new
-  // round (newRound flag from the client) resets the streak to 0 first — the
+  // round (newRound flag from the client) resets the streak to 0 first, the
   // flag can only lower a combo, never raise it, so it isn't exploitable.
   // Combo shield (store item): a wrong answer consumes a shield instead of
-  // breaking your combo — unless a brand-new round just started.
+  // breaking your combo, unless a brand-new round just started.
   let shieldUsed = false;
   let combo = nextCombo({ userCombo: user.combo, correct, newRound: Boolean(newRound) });
   if (!correct && !newRound) {
@@ -624,7 +628,7 @@ app.post('/api/answer', authRequired, async (req, res) => {
 
   // ── Gem economy rewards: combo streaks, level-ups, and new badges ──────
   // Combo gems are paid at most once per question id (tracked in memory) so
-  // replaying a cached question can't farm gems — the questionCache keeps
+  // replaying a cached question can't farm gems, the questionCache keeps
   // questions by id, and the correct index comes back in the response.
   let gemsEarned = 0;
   if (correct && combo >= 4) {
@@ -731,7 +735,7 @@ app.post('/api/practice-test/next', authRequired, (req, res) => {
   const prev = session.modules[moduleKey];
   if (!prev) return res.status(404).json({ error: 'Module not found.' });
 
-  // Like the real SAT: every question counts — unanswered ones are wrong.
+  // Like the real SAT: every question counts, unanswered ones are wrong.
   let correct = 0, total = prev.questions.length;
   for (const q of prev.questions) {
     const a = answers ? answers[q.id] : undefined;
@@ -813,6 +817,95 @@ app.get('/api/practice-test/history', authRequired, async (req, res) => {
   res.json({ history: rows });
 });
 
+// ── Focused practice tests (12 themed tests, instant answer checking) ─────
+// Open to everyone: each test is a short, themed set with instant feedback
+// and a saved score on the Stats page.
+app.get('/api/practice-tests', authRequired, async (req, res) => {
+  const rows = await db.prepare('SELECT test_id, MAX(pct) as best FROM practice_test_scores WHERE user_id = ? GROUP BY test_id').all(req.user.id);
+  const best = {};
+  for (const r of rows) if (r.best !== null && r.best !== undefined) best[r.test_id] = r.best;
+  res.json({
+    tests: PRACTICE_TESTS.map((t) => ({
+      id: t.id, title: t.title, tagline: t.tagline, section: t.section,
+      count: t.count, icon: t.icon,
+      best: best[t.id] !== undefined ? best[t.id] : null,
+    })),
+  });
+});
+
+app.post('/api/practice-tests/start', authRequired, async (req, res) => {
+  const { testId } = req.body || {};
+  const def = PRACTICE_TESTS.find((t) => t.id === testId);
+  if (!def) return res.status(404).json({ error: 'Unknown practice test.' });
+  const questions = generatePracticeTestQuestions(def);
+  if (!questions.length) return res.status(500).json({ error: 'Could not build this test right now. Try again.' });
+  const token = crypto.randomBytes(8).toString('hex');
+  ptestSessions.set(token, { userId: req.user.id, testId: def.id, def, questions, startedAt: Date.now() });
+  if (ptestSessions.size > TEST_MAX) ptestSessions.delete(ptestSessions.keys().next().value);
+  res.json({
+    token,
+    test: { id: def.id, title: def.title },
+    // Answers ship with the payload so students get instant feedback; the
+    // final score is still computed server-side from the submitted answers.
+    questions: questions.map(({ correctIndex, answer, ...rest }) => ({ ...rest, _correct: correctIndex, _answer: answer })),
+  });
+});
+
+app.post('/api/practice-tests/submit', authRequired, async (req, res) => {
+  const { token, answers } = req.body || {};
+  const session = ptestSessions.get(token);
+  if (!session || session.userId !== req.user.id) {
+    return res.status(404).json({ error: 'Test session not found.' });
+  }
+  let correct = 0;
+  const detail = [];
+  for (const q of session.questions) {
+    const userAns = answers ? answers[q.id] : undefined;
+    let ok = false;
+    if (userAns !== undefined && userAns !== null) {
+      ok = q.type === 'grid' ? normalizeNumber(userAns) === normalizeNumber(q.answer) : userAns === q.correctIndex;
+      // practice-test answers also feed per-topic proficiency (like full tests)
+      const ts = await db.prepare('SELECT * FROM topic_stats WHERE user_id = ? AND topic = ?').get(req.user.id, q.topic);
+      const rating = updateRating({ rating: ts ? ts.rating : 50, correct: ok, difficulty: q.difficulty });
+      if (ts) await db.prepare('UPDATE topic_stats SET attempts = attempts + 1, correct = correct + ?, rating = ?, last_at = datetime(\'now\') WHERE id = ?')
+        .run(ok ? 1 : 0, rating, ts.id);
+      else await db.prepare('INSERT INTO topic_stats (user_id, topic, attempts, correct, rating, last_at) VALUES (?, ?, 1, ?, ?, datetime(\'now\'))')
+        .run(req.user.id, q.topic, ok ? 1 : 0, rating);
+    }
+    if (ok) correct++;
+    detail.push({ id: q.id, section: q.section, topic: q.topic, correct: ok, explanation: q.explanation });
+  }
+  const total = session.questions.length;
+  const pct = Math.round((correct / total) * 100);
+  const grade = gradeForPct(pct);
+  await db.prepare('INSERT INTO practice_test_scores (user_id, test_id, test_title, correct, total, pct) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(req.user.id, session.testId, session.def.title, correct, total, pct);
+  ptestSessions.delete(token);
+  res.json({ correct, total, pct, grade, detail });
+});
+
+// Aggregate stats for the Stats page (practice tests + full tests)
+app.get('/api/stats', authRequired, async (req, res) => {
+  const [practice, full, aggP, aggF] = await Promise.all([
+    db.prepare('SELECT * FROM practice_test_scores WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(req.user.id),
+    db.prepare('SELECT * FROM test_scores WHERE user_id = ? ORDER BY id DESC LIMIT 20').all(req.user.id),
+    db.prepare('SELECT COUNT(*) as n, AVG(pct) as avg, MAX(pct) as best FROM practice_test_scores WHERE user_id = ?').get(req.user.id),
+    db.prepare('SELECT COUNT(*) as n, AVG(scaled_score) as avg, MAX(scaled_score) as best FROM test_scores WHERE user_id = ?').get(req.user.id),
+  ]);
+  res.json({
+    practiceTests: practice,
+    fullTests: full,
+    aggregate: {
+      practiceCount: aggP.n || 0,
+      practiceAvg: Math.round(aggP.avg || 0),
+      practiceBest: aggP.best || 0,
+      fullCount: aggF.n || 0,
+      fullAvg: Math.round(aggF.avg || 0),
+      fullBest: aggF.best || 0,
+    },
+  });
+});
+
 // ── Leaderboard & dashboard ────────────────────────────────────────────────
 
 app.get('/api/leaderboard', async (req, res) => {
@@ -854,7 +947,7 @@ app.get('/api/dashboard', authRequired, async (req, res) => {
     daysLeft = Math.ceil((new Date(user.target_date + 'T00:00:00') - new Date()) / 864e5);
   }
 
-  // weak topics (accuracy < 60%, min 2 attempts) — annotated with proficiency
+  // weak topics (accuracy < 60%, min 2 attempts), annotated with proficiency
   const weak = (await db.prepare(`
     SELECT a.topic, a.section, COUNT(*) as n, SUM(a.correct) as correct, ts.rating as rating
     FROM answers a
@@ -1018,11 +1111,11 @@ app.post('/api/settings', authRequired, async (req, res) => {
   }
   if (daily_goal !== undefined) {
     const g = parseInt(daily_goal, 10);
-    if (!Number.isFinite(g) || g < 1 || g > 200) return res.status(400).json({ error: 'Daily goal must be 1–200.' });
+    if (!Number.isFinite(g) || g < 1 || g > 200) return res.status(400).json({ error: 'Daily goal must be 1-200.' });
     updates.push('daily_goal = ?'); values.push(g);
   }
   if (!updates.length) {
-    // only the AI key changed — return the refreshed user anyway
+    // only the AI key changed, return the refreshed user anyway
     const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     return res.json({ user: publicUser(row) });
   }
@@ -1042,7 +1135,7 @@ app.post('/api/tutor', authRequired, async (req, res) => {
     const used = await todayTutorCount(req.user.id);
     if (used >= FREE_TUTOR_DAILY) {
       return res.status(402).json({
-        error: `You've used your ${FREE_TUTOR_DAILY} free tutor messages today — go premium for unlimited tutoring.`,
+        error: `You've used your ${FREE_TUTOR_DAILY} free tutor messages today. Go premium for unlimited tutoring.`,
         upgrade: true, code: 'tutor_limit',
         plan: { tutorUsed: used, tutorLimit: FREE_TUTOR_DAILY },
       });
@@ -1083,7 +1176,7 @@ app.post('/api/store/buy', authRequired, async (req, res) => {
   const { itemId } = req.body || {};
   const item = STORE_CATALOG[itemId];
   if (!item) return res.status(400).json({ error: 'Unknown item.' });
-  // Power-ups cost gems — deducted atomically (never goes negative).
+  // Power-ups cost gems, deducted atomically (never goes negative).
   if (item.price > 0 && !req.user.is_admin) {
     const spent = await spendGems(req.user.id, item.price, 'store buy ' + itemId);
     if (!spent) return res.status(400).json({ error: 'Not enough gems to buy that.' });
@@ -1092,19 +1185,19 @@ app.post('/api/store/buy', authRequired, async (req, res) => {
   return res.json({ ok: true, itemId, qty: await getItemQty(req.user.id, itemId), gems: await getGems(req.user.id) });
 });
 
-// Use a power-up — consumes one from inventory. Hearts refill a round;
+// Use a power-up, consumes one from inventory. Hearts refill a round;
 // hints 50/50 a question; boost activates double XP.
 app.post('/api/store/use', authRequired, async (req, res) => {
   const { itemId, questionId } = req.body || {};
   if (itemId === 'hearts') {
     if (!(await consumeItem(req.user.id, 'hearts', 1))) {
-      return res.status(400).json({ error: 'No heart refills left — grab one in the store.' });
+      return res.status(400).json({ error: 'No heart refills left, grab one in the store.' });
     }
     return res.json({ ok: true, itemId, effect: 'hearts', lives: 3 });
   }
   if (itemId === 'boost') {
     if (!(await consumeItem(req.user.id, 'boost', 1))) {
-      return res.status(400).json({ error: 'No XP boosts left — grab one in the store.' });
+      return res.status(400).json({ error: 'No XP boosts left, grab one in the store.' });
     }
     await db.prepare('UPDATE users SET xp_boost = xp_boost + ? WHERE id = ?').run(XP_BOOST_AMOUNT, req.user.id);
     return res.json({ ok: true, itemId, effect: 'boost', boost: XP_BOOST_AMOUNT });
@@ -1114,10 +1207,10 @@ app.post('/api/store/use', authRequired, async (req, res) => {
     if (!q || !Array.isArray(q.choices) || q.choices.length < 2) {
       return res.status(404).json({ error: 'Question not found.' });
     }
-    // Validate the question first, then consume — never burn an item on an
+    // Validate the question first, then consume, never burn an item on an
     // invalid use.
     if (!(await consumeItem(req.user.id, 'hint', 1))) {
-      return res.status(400).json({ error: 'No hints left — grab one in the store.' });
+      return res.status(400).json({ error: 'No hints left, grab one in the store.' });
     }
     // Keep the correct answer + one random wrong; return original indices so
     // the client can still map clicks back to the real answer (never leak it).
@@ -1143,7 +1236,7 @@ app.post('/api/store/checkout', authRequired, async (req, res) => {
     return res.json({ ok: true, free: true, gems: await getGems(req.user.id) });
   }
   const key = (await getConfig()).stripeKey;
-  if (!key) return res.status(503).json({ error: 'Payments are not configured yet — ask the admin for a gem grant.' });
+  if (!key) return res.status(503).json({ error: 'Payments are not configured yet, ask the admin for a gem grant.' });
   const base = (await getConfig()).appUrl || `${req.protocol}://${req.get('host')}`;
   try {
     const sessionRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -1152,7 +1245,7 @@ app.post('/api/store/checkout', authRequired, async (req, res) => {
       body: new URLSearchParams({
         mode: 'payment',
         'line_items[0][price_data][currency]': 'usd',
-        'line_items[0][price_data][product_data][name]': pack.label + ' — SAT Arena gems',
+        'line_items[0][price_data][product_data][name]': pack.label + ', SAT Arena gems',
         'line_items[0][price_data][unit_amount]': String(pack.priceCents),
         'line_items[0][quantity]': '1',
         success_url: `${base}/api/store/confirm?session_id={CHECKOUT_SESSION_ID}`,
@@ -1175,7 +1268,7 @@ app.post('/api/store/checkout', authRequired, async (req, res) => {
   }
 });
 
-// Stripe Checkout success redirect — credits gems idempotently (no webhook needed).
+// Stripe Checkout success redirect, credits gems idempotently (no webhook needed).
 app.get('/api/store/confirm', authRequired, async (req, res) => {
   const key = (await getConfig()).stripeKey;
   const sessionId = String(req.query.session_id || '');
@@ -1205,7 +1298,7 @@ function findQuestionById(id) {
   return questionCache.get(id) || null;
 }
 
-// ── Google OAuth 2.0 (no extra deps — plain fetch, Node >= 22) ────────────
+// ── Google OAuth 2.0 (no extra deps, plain fetch, Node >= 22) ────────────
 // Credentials come from .env or the admin-editable runtime config (DB).
 // Without them the /api/auth/google endpoint returns a friendly error
 // instead of crashing the server.
@@ -1259,7 +1352,7 @@ async function oauthRedirectUri(req) {
   return `${base}/api/auth/google/callback`;
 }
 
-// 1. Kick off the flow — redirect the browser to Google's consent screen
+// 1. Kick off the flow, redirect the browser to Google's consent screen
 app.get('/api/auth/google', async (req, res) => {
   if (!(await googleOAuthEnabled())) {
     return res.status(503).json({ error: 'Google sign-in is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the admin panel or .env' });
@@ -1329,7 +1422,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
         await db.prepare('UPDATE users SET google_id = ? WHERE id = ?').run(profile.sub, byEmail.id);
         user = await db.prepare('SELECT * FROM users WHERE id = ?').get(byEmail.id);
       } else {
-        // brand new account — derive a username from the email/name
+        // brand new account, derive a username from the email/name
         const base = (profile.name || profile.email.split('@')[0] || 'player')
           .toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 18) || 'player';
         // username uniqueness: synchronous DB ops with no await between the
@@ -1339,7 +1432,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
         while (await db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
           username = `${base}${n++}`.slice(0, 20);
         }
-        // random password — Google users can't log in with a password
+        // random password, Google users can't log in with a password
         const pw = crypto.randomBytes(32).toString('hex');
         const info = await db.prepare('INSERT INTO users (username, email, password_hash, google_id) VALUES (?, ?, ?, ?)')
           .run(username, String(profile.email).toLowerCase(), hashPassword(pw), profile.sub);
@@ -1396,7 +1489,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
   const c = await getConfig();
   const key = c.stripeKey;
   if (!key) {
-    return res.status(503).json({ error: 'Payments are not configured yet — ask the admin for a premium grant.', upgrade: true });
+    return res.status(503).json({ error: 'Payments are not configured yet, ask the admin for a premium grant.', upgrade: true });
   }
   const base = c.appUrl || `${req.protocol}://${req.get('host')}`;
   try {
@@ -1411,7 +1504,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
     const params = new URLSearchParams({
       mode: def.mode,
       'line_items[0][price_data][currency]': 'usd',
-      'line_items[0][price_data][product_data][name]': 'SAT Arena Premium' + (plan === 'lifetime' ? ' — Lifetime' : ''),
+      'line_items[0][price_data][product_data][name]': 'SAT Arena Premium' + (plan === 'lifetime' ? ', Lifetime' : ''),
       'line_items[0][price_data][unit_amount]': String(def.cents),
       'line_items[0][quantity]': '1',
       success_url: `${base}/api/subscription/confirm?session_id={CHECKOUT_SESSION_ID}`,
@@ -1439,7 +1532,7 @@ app.post('/api/subscribe', authRequired, async (req, res) => {
   }
 });
 
-// Stripe subscription success — grants premium for 30 days (idempotent).
+// Stripe subscription success, grants premium for 30 days (idempotent).
 app.get('/api/subscription/confirm', authRequired, async (req, res) => {
   const key = (await getConfig()).stripeKey;
   const sessionId = String(req.query.session_id || '');
@@ -1610,7 +1703,7 @@ app.get('/api/admin/config', adminRequired, async (req, res) => {
 });
 
 app.post('/api/admin/config', adminRequired, async (req, res) => {
-  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents', 'premium_annual_cents', 'premium_lifetime_cents'];
+  const allowed = ['google_client_id', 'google_client_secret', 'app_url', 'gemini_api_key', 'gemini_model', 'groq_api_key', 'groq_model', 'resend_api_key', 'email_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure', 'ads_enabled', 'ads_code', 'ads_network', 'adsense_client', 'stripe_secret_key', 'premium_price_cents', 'premium_annual_cents', 'premium_lifetime_cents'];
 
   // Empty fields and masked values ('•••') are treated as "keep current" so
   // a save that leaves a secret untouched can never overwrite it with the
@@ -1626,7 +1719,7 @@ app.post('/api/admin/config', adminRequired, async (req, res) => {
   if (!Object.keys(entries).length && !clears.length) {
     return res.status(400).json({ error: 'No settings to save.' });
   }
-  // Delete first, then setConfig() re-reads everything — order matters so the
+  // Delete first, then setConfig() re-reads everything, order matters so the
   // cached snapshot reflects the cleared state (getConfig alone would return
   // the stale cache because setConfig just refreshed its timestamp).
   for (const k of clears) {
@@ -1681,7 +1774,7 @@ app.post('/api/admin/test-email', adminRequired, async (req, res) => {
   if (!validateEmail(String(to || ''))) return res.status(400).json({ error: 'Enter a valid recipient email.' });
   const result = await sendEmail(
     String(to),
-    'SAT Arena — test email',
+    'SAT Arena, test email',
     `<div style="font-family:system-ui,sans-serif"><h2 style="color:#16a34a">SAT Arena</h2><p>If you can read this, your email settings are working.</p><p style="color:#6b7280;font-size:13px">Sent ${new Date().toISOString()}</p></div>`
   );
   if (result.sent) {
@@ -1691,8 +1784,8 @@ app.post('/api/admin/test-email', adminRequired, async (req, res) => {
   }
   return res.status(502).json({
     error: result.dev
-      ? 'No email provider configured — you are in dev mode (codes show on screen).'
-      : (result.error || 'Email send failed — check your provider settings.'),
+      ? 'No email provider configured, you are in dev mode (codes show on screen).'
+      : (result.error || 'Email send failed, check your provider settings.'),
     via: result.via || null,
   });
 });
@@ -1748,7 +1841,7 @@ app.use((err, _req, res, _next) => {
 });
 
 // Async DB calls can reject (e.g. a transient Turso hiccup on Render). Never
-// let an unhandled rejection kill the process — log and keep serving.
+// let an unhandled rejection kill the process, log and keep serving.
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err && err.message ? err.message : err);
 });
