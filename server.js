@@ -1064,18 +1064,17 @@ app.get('/api/tutor/status', authRequired, async (req, res) => {
 });
 
 // ── Store (gems, items) ──────────────────────────────────────────────────
-// Everything is free — no premium tier, no paywalls. Gems are a fun earned
-// currency shown in the top bar; every power-up can be claimed and used at
-// no cost so practice is never blocked.
+// Gems are the real in-app currency: earned by practicing (combos, levels,
+// badges) and spent on power-ups in the store. Admins get items free.
 app.get('/api/store', authRequired, async (req, res) => {
   const items = {};
   for (const id of Object.keys(STORE_CATALOG)) items[id] = await getItemQty(req.user.id, id);
   res.json({
     gems: await getGems(req.user.id),
     xpBoost: req.user.xp_boost || 0,
-    free: true, // always free for everyone
+    free: false,
     paymentConfigured: false,
-    catalog: Object.values(STORE_CATALOG).map((c) => ({ ...c, owned: items[c.id] || 0, price: 0 })),
+    catalog: Object.values(STORE_CATALOG).map((c) => ({ ...c, owned: items[c.id] || 0 })),
     packs: [], // no real-money packs
   });
 });
@@ -1084,19 +1083,29 @@ app.post('/api/store/buy', authRequired, async (req, res) => {
   const { itemId } = req.body || {};
   const item = STORE_CATALOG[itemId];
   if (!item) return res.status(400).json({ error: 'Unknown item.' });
-  // Free for everyone — no gems needed.
+  // Power-ups cost gems — deducted atomically (never goes negative).
+  if (item.price > 0 && !req.user.is_admin) {
+    const spent = await spendGems(req.user.id, item.price, 'store buy ' + itemId);
+    if (!spent) return res.status(400).json({ error: 'Not enough gems to buy that.' });
+  }
   await addItem(req.user.id, itemId, 1);
-  return res.json({ ok: true, free: true, itemId, qty: await getItemQty(req.user.id, itemId), gems: await getGems(req.user.id) });
+  return res.json({ ok: true, itemId, qty: await getItemQty(req.user.id, itemId), gems: await getGems(req.user.id) });
 });
 
-// Use a power-up. Hearts refill a round; hints 50/50 a question; boost
-// activates double XP. All free — inventory is just a fun counter.
+// Use a power-up — consumes one from inventory. Hearts refill a round;
+// hints 50/50 a question; boost activates double XP.
 app.post('/api/store/use', authRequired, async (req, res) => {
   const { itemId, questionId } = req.body || {};
   if (itemId === 'hearts') {
+    if (!(await consumeItem(req.user.id, 'hearts', 1))) {
+      return res.status(400).json({ error: 'No heart refills left — grab one in the store.' });
+    }
     return res.json({ ok: true, itemId, effect: 'hearts', lives: 3 });
   }
   if (itemId === 'boost') {
+    if (!(await consumeItem(req.user.id, 'boost', 1))) {
+      return res.status(400).json({ error: 'No XP boosts left — grab one in the store.' });
+    }
     await db.prepare('UPDATE users SET xp_boost = xp_boost + ? WHERE id = ?').run(XP_BOOST_AMOUNT, req.user.id);
     return res.json({ ok: true, itemId, effect: 'boost', boost: XP_BOOST_AMOUNT });
   }
@@ -1104,6 +1113,11 @@ app.post('/api/store/use', authRequired, async (req, res) => {
     const q = findQuestionById(String(questionId || ''));
     if (!q || !Array.isArray(q.choices) || q.choices.length < 2) {
       return res.status(404).json({ error: 'Question not found.' });
+    }
+    // Validate the question first, then consume — never burn an item on an
+    // invalid use.
+    if (!(await consumeItem(req.user.id, 'hint', 1))) {
+      return res.status(400).json({ error: 'No hints left — grab one in the store.' });
     }
     // Keep the correct answer + one random wrong; return original indices so
     // the client can still map clicks back to the real answer (never leak it).

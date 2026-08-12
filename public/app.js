@@ -444,12 +444,119 @@ function practiceQuotaLeft() {
   return state.plan.dailyUsed < state.plan.dailyLimit;
 }
 
+// ── Local-currency pricing ────────────────────────────────────────────────
+// Plan prices are stored in USD cents (admin-configurable). We display them
+// in the visitor's local currency: the country comes from the browser locale
+// (navigator.language), and the USD→local rate is fetched once from a free
+// public API and cached for 12h. If the fetch fails we fall back to USD.
+const COUNTRY_CURRENCY = {
+  US: 'USD', GB: 'GBP', IN: 'INR', CA: 'CAD', AU: 'AUD', NZ: 'NZD',
+  DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR',
+  IE: 'EUR', AT: 'EUR', FI: 'EUR', GR: 'EUR', SK: 'EUR', SI: 'EUR', EE: 'EUR',
+  LV: 'EUR', LT: 'EUR', LU: 'EUR', MT: 'EUR', CY: 'EUR', HR: 'EUR',
+  JP: 'JPY', KR: 'KRW', CN: 'CNY', SG: 'SGD', MY: 'MYR', ID: 'IDR', TH: 'THB',
+  PH: 'PHP', VN: 'VND', BD: 'BDT', PK: 'PKR', LK: 'LKR', NP: 'NPR',
+  AE: 'AED', SA: 'SAR', QA: 'QAR', KW: 'KWD', BH: 'BHD', OM: 'OMR', IL: 'ILS',
+  TR: 'TRY', RU: 'RUB', UA: 'UAH', PL: 'PLN', CZ: 'CZK', HU: 'HUF', RO: 'RON',
+  BG: 'BGN', SE: 'SEK', NO: 'NOK', DK: 'DKK', CH: 'CHF',
+  BR: 'BRL', MX: 'MXN', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN',
+  ZA: 'ZAR', NG: 'NGN', KE: 'KES', EG: 'EGP', MA: 'MAD', GH: 'GHS', ET: 'ETB', TZ: 'TZS', UG: 'UGX',
+};
+let fxRatesCache = null; // { at: ms, rates: { 'INR': 83.2, ... } }
+
+// Last-resort approximate USD rates (used only when BOTH live APIs are
+// unreachable — keeps prices in the local currency even fully offline).
+const FALLBACK_FX_RATES = {
+  INR: 84, GBP: 0.79, EUR: 0.92, CAD: 1.38, AUD: 1.52, NZD: 1.67, JPY: 154, KRW: 1380,
+  CNY: 7.25, SGD: 1.35, MYR: 4.7, IDR: 16200, THB: 36, PHP: 58, VND: 25400, BDT: 117,
+  PKR: 278, LKR: 300, NPR: 134, AED: 3.67, SAR: 3.75, QAR: 3.64, KWD: 0.31, BHD: 0.38,
+  OMR: 0.38, ILS: 3.7, TRY: 34, RUB: 96, UAH: 41, PLN: 4.0, CZK: 23.5, HUF: 368, RON: 4.6,
+  BGN: 1.8, SEK: 10.9, NOK: 11.0, DKK: 6.9, CHF: 0.88, BRL: 5.4, MXN: 18.5, ARS: 950,
+  CLP: 950, COP: 4200, PEN: 3.8, ZAR: 18.2, NGN: 1600, KES: 130, EGP: 49, MAD: 10, GHS: 15.6, ETB: 120,
+};
+
+function userCurrency() {
+  const lang = navigator.language || 'en-US';
+  const country = (lang.split('-')[1] || 'US').toUpperCase();
+  return COUNTRY_CURRENCY[country] || 'USD';
+}
+
+async function fxRates() {
+  const now = Date.now();
+  if (fxRatesCache && now - fxRatesCache.at < 12 * 3600 * 1000) return fxRatesCache.rates;
+  try {
+    const raw = localStorage.getItem('sat_fx_rates');
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && now - c.at < 12 * 3600 * 1000) { fxRatesCache = c; return c.rates; }
+    }
+  } catch { /* ignore */ }
+  // Try the primary free API, then a secondary one, then the offline table.
+  const sources = [
+    'https://open.er-api.com/v6/latest/USD',
+    'https://api.exchangerate-api.com/v4/latest/USD',
+  ];
+  for (const url of sources) {
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.rates && data.rates.USD) {
+        fxRatesCache = { at: Date.now(), rates: data.rates };
+        try { localStorage.setItem('sat_fx_rates', JSON.stringify(fxRatesCache)); } catch { /* ignore */ }
+        return data.rates;
+      }
+    } catch { /* try next source */ }
+  }
+  return { ...FALLBACK_FX_RATES }; // offline mode
+}
+
+// Format a USD price (cents) in the visitor's local currency, e.g. ₹833.
+async function localPrice(cents) {
+  const currency = userCurrency();
+  let amount = (cents || 0) / 100;
+  let code = 'USD';
+  if (currency !== 'USD') {
+    const rates = await fxRates();
+    if (rates && rates[currency]) { code = currency; amount = (cents / 100) * rates[currency]; }
+  }
+  try {
+    // Currencies that are normally whole-number (JPY, KRW, VND…) stay
+    // decimal-free; the rest cap at 2 digits to avoid long tails.
+    const opts = { style: 'currency', currency: code };
+    const zeroDec = ['JPY', 'KRW', 'VND', 'IDR', 'CLP', 'COP', 'ISK', 'HUF', 'TWD', 'UGX', 'TZS', 'GHS'].includes(code);
+    opts.minimumFractionDigits = zeroDec ? 0 : undefined;
+    opts.maximumFractionDigits = zeroDec ? 0 : 2;
+    return new Intl.NumberFormat(navigator.language || 'en-US', opts).format(amount);
+  } catch {
+    return '$' + (cents / 100).toFixed(2);
+  }
+}
+
+// Landing-page plan cards are static HTML — localize them once on load.
+// Prices are the admin defaults (999 / 7999 / 14900 cents); the premium page
+// re-prices from the live catalog when the user is logged in.
+async function localizeLandingPrices() {
+  const defs = [
+    ['#landing-monthly-price', 999, '/month'],
+    ['#landing-annual-price', 7999, '/year'],
+    ['#landing-lifetime-price', 14900, 'one-time'],
+  ];
+  for (const [sel, cents, per] of defs) {
+    const el = $(sel);
+    if (!el) continue;
+    const money = await localPrice(cents);
+    el.innerHTML = money + '<span>' + per + '</span>';
+  }
+}
+
 // ── Upgrade modal ──────────────────────────────────────────────────────────
-function openUpgrade(reason) {
+async function openUpgrade(reason) {
   $('#upgrade-error').textContent = '';
-  const price = state.plan.priceCents ? '$' + (state.plan.priceCents / 100).toFixed(2) : '$9.99';
   const priceEl = $('#upgrade-price');
-  if (priceEl) priceEl.innerHTML = price + '<span>/month</span>';
+  if (priceEl) {
+    const money = await localPrice(state.plan.priceCents || 999);
+    priceEl.innerHTML = money + '<span>/month</span>';
+  }
   $('#upgrade-modal').classList.remove('hidden');
 }
 function closeUpgrade() {
@@ -487,7 +594,7 @@ async function subscribePremium(btnOverride, errorElId) {
 // Highlight the selected plan card + keep the price note in sync. Called on
 // every card click and on page load so the selection survives revisits (the
 // highlighted card and the plan sent to /api/subscribe always agree).
-function syncPlanSelection() {
+async function syncPlanSelection() {
   const sel = state.selectedPlan || 'monthly';
   $$('.plan-card.selectable').forEach((c) => c.classList.toggle('selected', c.dataset.plan === sel));
   const p = (state.plans || []).find((x) => x.id === sel);
@@ -495,11 +602,11 @@ function syncPlanSelection() {
   if (!note) return;
   if (sel === 'lifetime') {
     const cents = p ? p.priceCents : 14900;
-    note.textContent = 'Lifetime — $' + (cents / 100).toFixed(2) + ' one-time, no renewals.';
+    note.textContent = 'Lifetime — ' + await localPrice(cents) + ' one-time, no renewals.';
   } else {
     const cents = p ? p.priceCents : (sel === 'annual' ? 7999 : 999);
     const per = sel === 'annual' ? '/year' : '/month';
-    note.textContent = sel.charAt(0).toUpperCase() + sel.slice(1) + ' — $' + (cents / 100).toFixed(2) + per + ', cancel anytime.';
+    note.textContent = sel.charAt(0).toUpperCase() + sel.slice(1) + ' — ' + await localPrice(cents) + per + ', cancel anytime.';
   }
 }
 
@@ -508,13 +615,12 @@ async function loadPremiumPage() {
   const s = await api('/api/subscription');
   state.plan = { ...state.plan, premium: s.premium, priceCents: s.priceCents, dailyUsed: s.dailyUsed, tutorUsed: s.tutorUsed };
   if (Array.isArray(s.plans)) state.plans = s.plans;
-  // Price the selectable plan cards from the live catalog
+  // Price the selectable plan cards from the live catalog (local currency)
   (s.plans || []).forEach((p) => {
     const el = document.querySelector('[data-price-for="' + p.id + '"]');
     if (el) {
-      const money = '$' + (p.priceCents / 100).toFixed(2);
       const per = p.per === 'year' ? '/year' : p.per === 'one-time' ? 'one-time' : '/month';
-      el.innerHTML = money + '<span>' + per + '</span>';
+      localPrice(p.priceCents).then((money) => { el.innerHTML = money + '<span>' + per + '</span>'; });
     }
   });
   syncPlanSelection(); // restore the highlighted card + price note on revisit
@@ -1196,10 +1302,11 @@ async function loadQuestion() {
   $('#q-adaptive').textContent = 'Adaptive · L' + g.adaptiveDiff;
   $('#fb-prog').textContent = '';
   $('#calc-btn').classList.toggle('hidden', g.current.section !== 'math');
-  // 50/50 hint button — always available, never blocked (free for everyone)
+  // 50/50 hint button — only when you own a hint (bought in the store)
   const hintBtn = $('#hint-btn');
   if (hintBtn) {
-    hintBtn.classList.toggle('hidden', g.current.type === 'grid');
+    const ownsHint = state.store && state.store.items ? state.store.items.hint > 0 : true;
+    hintBtn.classList.toggle('hidden', g.current.type === 'grid' || !ownsHint);
     hintBtn.textContent = 'Hint';
   }
   const refillHide = $('#refill-btn');
@@ -1669,7 +1776,8 @@ function renderTestQuestion() {
   $('#test-calc-btn').classList.toggle('hidden', !isMath);
   const testHintBtn = $('#test-hint-btn');
   if (testHintBtn) {
-    testHintBtn.classList.toggle('hidden', q.type === 'grid');
+    const ownsHint = state.store && state.store.items ? state.store.items.hint > 0 : true;
+    testHintBtn.classList.toggle('hidden', q.type === 'grid' || !ownsHint);
     testHintBtn.textContent = 'Hint';
   }
 
@@ -1874,7 +1982,7 @@ function renderStore(data) {
   const banner = $('#store-banner');
   if (banner) {
     banner.classList.remove('hidden');
-    banner.innerHTML = `${ICONS.gem}<span>Everything is free — no payments, no premium. Gems are just for fun.</span>`;
+    banner.innerHTML = `${ICONS.gem}<span>Spend your gems on power-ups — earn more by practicing.</span>`;
     banner.classList.remove('admin');
   }
 
@@ -1888,7 +1996,7 @@ function renderStore(data) {
           <span class="store-desc muted small">${c.desc}</span>
           ${c.owned > 0 ? `<span class="store-owned-tag">Owned ×${c.owned}</span>` : ''}
         </div>
-        <button class="btn store-buy free" data-item="${c.id}">Get</button>
+        <button class="btn store-buy" data-item="${c.id}" ${data.gems < c.price && !(state.user && state.user.is_admin) ? 'disabled' : ''} title="${c.price} gems">${ICONS.gem} ${c.price}</button>
       </div>`).join('');
     $$('#store-catalog [data-item]').forEach((b) => b.addEventListener('click', () => buyItem(b.dataset.item)));
   }
@@ -1954,9 +2062,10 @@ async function buyItem(itemId) {
     setCounter($('#top-gems'), r.gems.toLocaleString());
     const bal = $('#store-balance');
     if (bal) bal.textContent = r.gems.toLocaleString();
-    toast(r.free ? 'Added to your inventory — free' : 'Item added to your inventory');
+    toast('Item added to your inventory');
     Sound.correct();
-    flyGem($(`#store-catalog [data-item="${itemId}"]`) || $('#store-catalog'), '#top-gems-counter');
+    // gems leave the balance and fly into the card you just bought
+    flyGem($('#top-gems-counter'), `#store-catalog [data-item="${itemId}"]`);
     confetti(24);
     loadStore().catch(() => {});
   } catch (err) {
@@ -1965,9 +2074,9 @@ async function buyItem(itemId) {
 }
 
 async function checkoutPack() {
-  // Real-money packs are gone — everything is free. Kept as a no-op so any
-  // stale pack buttons can't error.
-  toast('Gem packs are off — everything is free');
+  // Real-money packs are off. Kept as a no-op so stale pack buttons can't
+  // error; gems come from practicing.
+  toast('Gem packs are off — earn gems by practicing');
 }
 
 // 50/50: server removes two wrong answers (never leaks the correct index)
@@ -1990,7 +2099,7 @@ async function useHint(mode) {
     if (btn) btn.classList.add('hidden');
     Sound.click();
     toast('Two wrong answers eliminated');
-    if (mode !== 'test') loadStore().catch(() => {}); // keep the free counters in sync
+    loadStore().catch(() => {}); // keep the inventory + gem counters in sync
   } catch (err) {
     toast(err.message);
   }
@@ -2022,6 +2131,7 @@ async function refillHearts() {
     if (refillBtn) refillBtn.classList.add('hidden');
     mascotReact('happy', 'Hearts restored — keep going');
     Sound.correct();
+    loadStore().catch(() => {}); // hearts inventory decremented — refresh
     const btn = $('#next-btn');
     btn.textContent = g.index >= g.mode.count ? 'See results' : 'Next question';
     btn.onclick = () => { if (g.index >= g.mode.count) finishGame(); else loadQuestion(); };
@@ -2623,6 +2733,8 @@ async function init() {
   applyTheme();
   initAuth();
   initPasswordToggles();
+  // show premium prices in the visitor's local currency (fire-and-forget)
+  localizeLandingPrices().catch(() => {});
 
   // mascot avatars: the static welcome bubble in the chat + the auth hero
   $$('.msg-avatar').forEach((a) => { if (!a.innerHTML) a.innerHTML = MASCOT_SVG.idle; });
