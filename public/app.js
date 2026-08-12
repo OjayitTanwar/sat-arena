@@ -1128,7 +1128,7 @@ async function renderDashboardData(data) {
 
   // adaptive difficulty summary line in the proficiency card
   const adaptEl = $('#dash-adaptive');
-  if (adaptEl) adaptEl.textContent = `Adaptive level: ${data.stats.adaptiveDiff} · skill rating ${data.stats.adaptiveRating} of 100, questions adjust after every answer.`;
+  if (adaptEl) adaptEl.textContent = `Skill rating ${data.stats.adaptiveRating}/100, questions adjust as you answer.`;
 
   // per-topic proficiency ratings
   const profEl = $('#proficiency-list');
