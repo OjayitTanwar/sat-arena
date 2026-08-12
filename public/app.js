@@ -15,7 +15,7 @@ const state = {
   store: null,         // gem balance + inventory snapshot (from /api/store / dashboard)
   calc: null,          // Desmos calculator instance
   soundOn: localStorage.getItem('sat_sound') !== 'off',
-  theme: localStorage.getItem('sat_theme') || 'light',
+  theme: localStorage.getItem('sat_theme') || 'dark',
   selectedPlan: 'monthly', // premium plan selector (monthly / annual / lifetime)
   plans: null,             // live plan catalog from /api/subscription
 };
@@ -232,7 +232,7 @@ function toast(msg) {
 
 function confetti(n = 90) {
   const layer = $('#confetti-layer');
-  const colors = ['#6c5ce7', '#a855f7', '#ec4899', '#fbbf24', '#34d399', '#22d3ee'];
+  const colors = ['#bac3ff', '#5c6bc0', '#c0cc95', '#ffb4a7', '#dee0ff', '#f8f6ff'];
   for (let i = 0; i < n; i++) {
     const c = document.createElement('div');
     c.className = 'confetti';

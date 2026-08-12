@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAT Arena — Free Gamified SAT Prep with Adaptive Practice Tests</title>
   <meta name="description" content="Train like it's game day. Fresh SAT-style questions, full-length digital-SAT practice tests with a built-in Desmos calculator, adaptive difficulty, streaks, and a free AI tutor. Start free — no card required." />
-  <meta name="theme-color" content="#16a34a" />
+  <meta name="theme-color" content="#11131a" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SAT Arena" />
   <meta property="og:title" content="SAT Arena — Free Gamified SAT Prep" />
@@ -14,7 +14,9 @@
   <meta name="twitter:title" content="SAT Arena — Free Gamified SAT Prep" />
   <meta name="twitter:description" content="Fresh SAT-style questions, full-length digital-SAT practice tests, adaptive difficulty and a free AI tutor." />
   <!-- Analytics: paste your free snippet here (Cloudflare Web Analytics, Plausible, GA4…) when you have one -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2316a34a'/%3E%3Cpath d='M16 8l9 4.5-9 4.5-9-4.5L16 8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 14.5V19c0 1.7 3.1 3 7 3s7-1.3 7-3v-4.5' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%235c6bc0'/%3E%3Cpath d='M16 8l9 4.5-9 4.5-9-4.5L16 8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 14.5V19c0 1.7 3.1 3 7 3s7-1.3 7-3v-4.5' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -23,7 +25,7 @@
   <section id="view-landing" class="view">
     <header class="landing-nav">
       <div class="landing-brand">
-        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <span class="brand-badge small"><span class="ms fill">workspace_premium</span></span>
         <span class="landing-brand-name">SAT <em>Arena</em></span>
       </div>
       <nav class="landing-nav-links">
@@ -38,12 +40,12 @@
     </header>
 
     <section class="landing-hero">
-      <p class="landing-eyebrow">Free SAT prep · No card required</p>
+      <p class="landing-eyebrow"><span class="ms sm">bolt</span>Free SAT prep · No card required</p>
       <h1>Train like it's <span class="accent">game day</span>.</h1>
       <p class="landing-sub">Fresh SAT-style questions generated live, full-length digital-SAT practice tests with the official Desmos calculator, and adaptive difficulty that tunes to you — plus streaks, badges and a free AI tutor in your corner.</p>
       <div class="landing-cta-row">
-        <button class="btn btn-primary btn-lg" data-landing-auth="signup">Start practicing free</button>
-        <button class="btn btn-ghost btn-lg" data-landing-auth="login">I have an account</button>
+        <button class="btn btn-primary" data-landing-auth="signup">Start practicing free</button>
+        <button class="btn btn-ghost" data-landing-auth="login">I have an account</button>
       </div>
       <div class="landing-stats">
         <div><b>108</b><span>questions per full test</span></div>
@@ -140,12 +142,12 @@
     <section class="landing-cta">
       <h2>Your next practice is 30 seconds away.</h2>
       <p class="muted">Create a free account — your XP, streaks and progress are saved.</p>
-      <button class="btn btn-primary btn-lg" data-landing-auth="signup">Create free account</button>
+      <button class="btn btn-primary" data-landing-auth="signup">Create free account</button>
     </section>
 
     <footer class="landing-footer">
       <div class="landing-footer-brand">
-        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <span class="brand-badge small"><span class="ms fill">workspace_premium</span></span>
         <span>SAT Arena — free gamified SAT prep for the digital SAT.</span>
       </div>
       <div class="landing-footer-links">
@@ -162,16 +164,16 @@
     <div class="auth-layout">
       <div class="auth-hero">
         <div class="brand-badge">
-          <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
+          <span class="ms lg fill">workspace_premium</span>
         </div>
         <div class="auth-mascot" id="auth-mascot" title="Your study buddy"></div>
         <h1 class="auth-title">SAT <span>Arena</span></h1>
         <p class="auth-tagline">Train like it's game day. Questions generated live, scored instantly, with a free AI tutor in your corner.</p>
         <ul class="auth-features">
-          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Fresh SAT-style questions on every attempt</li>
-          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span> XP, levels, streaks and badges</li>
-          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span> Free built-in AI tutor, no API key needed</li>
-          <li><span class="feat-ico"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Track accuracy and weekly progress</li>
+          <li><span class="feat-ico"><span class="ms sm">bolt</span></span> Fresh SAT-style questions on every attempt</li>
+          <li><span class="feat-ico"><span class="ms sm">trophy</span></span> XP, levels, streaks and badges</li>
+          <li><span class="feat-ico"><span class="ms sm">forum</span></span> Free built-in AI tutor, no API key needed</li>
+          <li><span class="feat-ico"><span class="ms sm">monitoring</span></span> Track accuracy and weekly progress</li>
         </ul>
         <div class="auth-quote">
           <blockquote>A 100-point score jump comes from consistency, not cramming.</blockquote>
@@ -300,11 +302,11 @@
         </div>
         <p class="auth-footnote">Your progress and XP are saved to your account.</p>
         <p class="auth-footnote" style="margin-top:4px">
-          <a href="terms.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Terms</a>
-          <span style="color:var(--border-strong)">&nbsp;·&nbsp;</span>
-          <a href="privacy.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Privacy</a>
-          <span style="color:var(--border-strong)">&nbsp;·&nbsp;</span>
-          <a href="refund.html" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong)">Refunds</a>
+          <a href="terms.html" class="muted" style="text-decoration:none;border-bottom:1px solid var(--border-strong)">Terms</a>
+          <span class="muted">&nbsp;·&nbsp;</span>
+          <a href="privacy.html" class="muted" style="text-decoration:none;border-bottom:1px solid var(--border-strong)">Privacy</a>
+          <span class="muted">&nbsp;·&nbsp;</span>
+          <a href="refund.html" class="muted" style="text-decoration:none;border-bottom:1px solid var(--border-strong)">Refunds</a>
         </p>
       </div>
     </div>
@@ -312,47 +314,29 @@
 
   <!-- ============ APP SHELL ============ -->
   <div id="app" class="app hidden">
-    <!-- top bar: streak + gems -->
-    <header class="topbar">
-      <div class="topbar-brand">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
-        <span>SAT Arena</span>
-      </div>
-      <div class="topbar-right">
-        <div class="counter" title="Daily practice streak">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3 1.07-1.06 2.78-3.5 2.78-5.5 0-1.38-.5-2-1-3C13 2 14 4 14 6.5 14 8.5 12.5 10 12 12c.5-1 1-2 1-3.5 1.07 1.06 2 2.5 2 4.5 0 2.76-2.24 5-5 5s-5-2.24-5-5c0-1.5.5-2.5 1-3 .5 1 1 2 1 3 0 .75-.25 1.5-.5 2z"/></svg>
-          <b id="top-streak">0</b>
-        </div>
-        <div class="counter" id="top-gems-counter" title="Gems — spend them in the store">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
-          <b id="top-gems">0</b>
-        </div>
-        <button class="premium-badge hidden" id="top-premium-badge" title="You're on Premium — unlimited practice" data-view="premium">
-          <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg>
-          Premium
-        </button>
-        <div class="counter hidden" id="top-hearts" title="Lives this round">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
-          <b id="top-hearts-num">3</b>
-        </div>
-      </div>
-    </header>
 
+    <!-- SideNavBar (fixed glass rail — expands on desktop) -->
     <aside class="sidebar">
       <div class="side-brand">
-        <span class="brand-badge small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
-        <span class="side-brand-name">SAT <em>Arena</em></span>
+        <span class="brand-badge"><span class="ms fill">workspace_premium</span></span>
+        <div class="side-brand-text">
+          <span class="side-brand-name">SAT <em>Arena</em></span>
+          <span class="side-brand-tagline">Elite SAT Prep</span>
+        </div>
       </div>
       <nav class="side-nav">
-        <button class="nav-item" data-view="dashboard"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg></span><span>Home</span></button>
-        <button class="nav-item" data-view="practice"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span><span>Practice</span></button>
-        <button class="nav-item" data-view="test"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span>Full test</span></button>
-        <button class="nav-item" data-view="leaderboard"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span><span>Leaderboard</span></button>
-        <button class="nav-item" data-view="store"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg></span><span>Store</span></button>
-        <button class="nav-item" data-view="premium"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span><span>Premium</span></button>
-        <button class="nav-item" data-view="tutor"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span>Tutor</span></button>
-        <button class="nav-item hidden" id="nav-admin" data-view="admin"><span class="nav-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span><span>Admin</span></button>
+        <button class="nav-item" data-view="dashboard" aria-label="Home"><span class="ms">home</span><span class="nav-label">Home</span></button>
+        <button class="nav-item" data-view="practice" aria-label="Practice"><span class="ms">school</span><span class="nav-label">Practice</span></button>
+        <button class="nav-item" data-view="test" aria-label="Full test"><span class="ms">description</span><span class="nav-label">Full test</span></button>
+        <button class="nav-item" data-view="leaderboard" aria-label="Leaderboard"><span class="ms">emoji_events</span><span class="nav-label">Leaderboard</span></button>
+        <button class="nav-item" data-view="store" aria-label="Store"><span class="ms">storefront</span><span class="nav-label">Store</span></button>
+        <button class="nav-item" data-view="premium" aria-label="Premium"><span class="ms">workspace_premium</span><span class="nav-label">Premium</span></button>
+        <button class="nav-item" data-view="tutor" aria-label="Tutor"><span class="ms">forum</span><span class="nav-label">Tutor</span></button>
+        <button class="nav-item hidden" id="nav-admin" data-view="admin" aria-label="Admin"><span class="ms">admin_panel_settings</span><span class="nav-label">Admin</span></button>
       </nav>
+      <div class="side-cta">
+        <button class="btn" data-view="practice" aria-label="Practice Now"><span class="ms">play_arrow</span><span class="nav-label">Practice Now</span></button>
+      </div>
       <div class="side-preferences">
         <button class="pref-btn" id="theme-btn" title="Toggle light/dark theme"></button>
         <button class="pref-btn" id="sound-btn" title="Toggle sound effects"></button>
@@ -370,6 +354,32 @@
     </aside>
 
     <main class="main">
+      <!-- TopAppBar: streak + gems counters -->
+      <header class="topbar">
+        <div class="topbar-brand">
+          <span class="ms fill">workspace_premium</span>
+          <span>SAT Arena</span>
+        </div>
+        <div class="topbar-right">
+          <div class="counter" title="Daily practice streak">
+            <span class="ms fill">local_fire_department</span>
+            <b id="top-streak">0</b>
+          </div>
+          <div class="counter" id="top-gems-counter" title="Gems — spend them in the store">
+            <span class="ms fill">diamond</span>
+            <b id="top-gems">0</b>
+          </div>
+          <button class="premium-badge hidden" id="top-premium-badge" title="You're on Premium — unlimited practice" data-view="premium">
+            <span class="ms sm fill">workspace_premium</span>
+            Premium
+          </button>
+          <div class="counter hidden" id="top-hearts" title="Lives this round">
+            <span class="ms fill">favorite</span>
+            <b id="top-hearts-num">3</b>
+          </div>
+        </div>
+      </header>
+
       <!-- ============ DASHBOARD ============ -->
       <section id="view-dashboard" class="view app-view">
         <header class="view-head">
@@ -827,13 +837,13 @@
       <section id="view-store" class="view app-view">
         <header class="view-head">
           <div>
-            <p class="eyebrow">Store</p>
+            <p class="eyebrow">The Bazaar</p>
             <h1 class="view-title">Power-ups</h1>
-            <p class="view-sub">Free boosters to keep your practice going — no payments, ever.</p>
+            <p class="view-sub">Exchange your hard-earned gems for powerful study advantages — free boosters, no payments, ever.</p>
           </div>
           <div class="head-stats">
             <div class="pill stat-pill" id="store-balance-pill" title="Your gems">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg>
+              <span class="ms fill" style="font-size:18px">diamond</span>
               <b id="store-balance">0</b>
             </div>
           </div>
@@ -861,7 +871,7 @@
         </header>
 
         <div class="card premium-hero">
-          <span class="premium-hero-icon"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg></span>
+          <span class="premium-hero-icon"><span class="ms lg fill">workspace_premium</span></span>
           <div>
             <h2>Everything SAT Arena has to offer</h2>
             <p class="muted">The free plan is a daily taste. Premium removes every limit so you can train the way test day demands — no caps, no ads.</p>
@@ -1269,7 +1279,7 @@
     <div class="modal-backdrop" id="upgrade-backdrop"></div>
     <div class="modal-card">
       <div class="upgrade-hero">
-        <svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 3 3 0 0 0 3 3"/><path d="M17 6h3a1 1 0 0 1 1 1 3 3 0 0 1-3 3"/></svg>
+        <span class="ms lg fill">workspace_premium</span>
       </div>
       <h2>Go premium</h2>
       <p class="muted small" id="upgrade-desc">Unlock unlimited practice, full-length tests, unlimited AI tutoring and deep topic analytics — ad-free.</p>
