@@ -433,19 +433,15 @@
         </div>
 
         <div class="dash-grid">
-          <div class="card level-card">
+          <div class="card stat-card level-card">
             <div class="level-ring" id="level-ring">
               <div class="level-ring-inner">
                 <span class="level-num" id="dash-level">1</span>
                 <span class="level-label" id="dash-level-label">Level 1</span>
               </div>
             </div>
-            <div class="level-info">
-              <h3 id="dash-level-title">Level 1</h3>
-              <p id="dash-xp-progress" class="muted">0 XP earned</p>
-              <div class="progress"><div class="progress-fill" id="dash-xp-bar" style="width:0%"></div></div>
-              <p class="muted small" id="dash-next-level">Next level in 100 XP</p>
-            </div>
+            <div class="stat-num" id="dash-level-title">Level 1</div>
+            <div class="progress slim level-xp"><div class="progress-fill" id="dash-xp-bar" style="width:0%"></div></div>
           </div>
 
           <div class="card stat-card">
@@ -463,15 +459,10 @@
             <div class="stat-num" id="stat-best">0</div>
             <div class="stat-label">Best streak</div>
           </div>
-          <div class="card stat-card">
-            <span class="stat-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>
-            <div class="stat-num" id="stat-math">0</div>
-            <div class="stat-label">Math solved</div>
-          </div>
         </div>
 
-        <div class="card quests-card" style="margin-bottom:12px">
-          <h3 class="card-title">Today's quests <span class="muted small">fresh every day</span></h3>
+        <div class="card quests-card stacked">
+          <h3 class="card-title">Today's quests</h3>
           <div class="quests-grid" id="quests-grid"></div>
         </div>
 
@@ -482,15 +473,15 @@
           </div>
           <div class="card tutor-card">
             <h3 class="card-title">AI Tutor</h3>
-            <p class="muted" id="dash-tutor-status">Built-in SAT Sage, free and ready.</p>
+            <p class="muted" id="dash-tutor-status">Built-in SAT Sage.</p>
             <button class="btn btn-ghost" data-view="tutor" style="margin-top:6px">Ask your tutor</button>
           </div>
         </div>
 
         <div class="dash-row">
           <div class="card weak-card">
-            <h3 class="card-title">Weak spots <span class="muted small">accuracy under 60%</span></h3>
-            <div id="weak-topics"><p class="muted small">Answer 2+ questions in a topic to see your weak spots here.</p></div>
+            <h3 class="card-title">Weak spots</h3>
+            <div id="weak-topics"><p class="muted small">Answer 2+ questions in a topic to unlock.</p></div>
           </div>
           <div class="card tests-card">
             <h3 class="card-title">Recent practice tests</h3>
@@ -498,13 +489,13 @@
           </div>
         </div>
 
-        <div class="card prof-card" style="margin-bottom:12px">
-          <h3 class="card-title">Topic proficiency <span class="muted small">Mastered, Advanced, Proficient, Developing</span></h3>
+        <div class="card prof-card stacked">
+          <h3 class="card-title">Topic proficiency</h3>
           <p class="muted small" id="dash-adaptive">Adaptive level: 2 · skill rating 50 of 100, questions adjust after every answer.</p>
           <div class="proficiency-grid" id="proficiency-list"><p class="muted small">Answer questions to build proficiency.</p></div>
         </div>
 
-        <div class="card badges-card" style="margin-bottom:12px">
+        <div class="card badges-card stacked">
           <h3 class="card-title">Badges <span class="badge-count" id="badge-count">0 / 13</span></h3>
           <div class="badges-grid" id="badges-grid"></div>
         </div>
@@ -520,7 +511,6 @@
               <h1 class="view-title">Your path</h1>
             </div>
           </header>
-          <p class="muted small adaptive-note">Questions adapt to your skill level as you answer.</p>
           <div class="free-limit-card hidden" id="free-limit-card">
             <div class="free-limit-text" id="free-limit-text"></div>
             <button class="btn btn-ghost small-btn" id="free-limit-upgrade">Go premium</button>
@@ -535,28 +525,35 @@
           <div class="modes-grid">
             <button class="mode-card" data-mode="quick">
               <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-              <span><h3>Quick fire</h3><p>10 mixed questions, best for a fast warm-up.</p></span>
-              <span class="mode-meta">Mixed<span class="xp-hint">+120 XP</span></span>
+              <span class="mode-body">
+                <h3>Quick fire</h3>
+                <span class="mode-meta">10 questions · <span class="xp-hint">+120 XP</span></span>
+              </span>
             </button>
             <button class="mode-card" data-mode="math">
               <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>
-              <span><h3>Math arena</h3><p>10 math questions, algebra, geometry, data.</p></span>
-              <span class="mode-meta">Math<span class="xp-hint">+140 XP</span></span>
+              <span class="mode-body">
+                <h3>Math arena</h3>
+                <span class="mode-meta">10 questions · <span class="xp-hint">+140 XP</span></span>
+              </span>
             </button>
             <button class="mode-card" data-mode="reading">
               <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
-              <span><h3>Reading blitz</h3><p>10 reading and writing questions.</p></span>
-              <span class="mode-meta">Reading<span class="xp-hint">+140 XP</span></span>
+              <span class="mode-body">
+                <h3>Reading blitz</h3>
+                <span class="mode-meta">10 questions · <span class="xp-hint">+140 XP</span></span>
+              </span>
             </button>
             <button class="mode-card" data-mode="challenge">
               <span class="mode-emoji"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span>
-              <span><h3>Timed challenge</h3><p>5 questions, 45 seconds each, speed bonus.</p></span>
-              <span class="mode-meta">Timed<span class="xp-hint">+90 XP</span></span>
+              <span class="mode-body">
+                <h3>Timed challenge</h3>
+                <span class="mode-meta">5 questions · <span class="xp-hint">+90 XP</span></span>
+              </span>
             </button>
           </div>
 
           <h3 class="drill-title">Targeted drill</h3>
-          <p class="muted small">Grind the topics you keep missing.</p>
           <div class="drill-picker">
             <select id="drill-topic" class="drill-select">
               <option value="">Choose a topic…</option>
@@ -565,7 +562,6 @@
           </div>
 
           <h3 class="drill-title">Practice tests</h3>
-          <p class="muted small">Twelve focused tests with instant checking. Scores save to your Stats page.</p>
           <div class="ptest-grid" id="ptest-grid"><p class="muted small">Loading tests…</p></div>
         </div>
 
@@ -702,18 +698,33 @@
             </div>
           </header>
           <div class="ad-slot hidden" id="ad-slot-test"></div>
-          <div class="card test-intro-card">
-            <h3>Full digital-SAT simulation</h3>
-            <p class="test-intro-lead">Same format, timing, and scoring as the real test. Finish it for an estimated 400-1600 score and a review of every question.</p>
-            <ul class="test-facts">
-              <li><b>4 modules, 108 questions</b>, about 2h15m</li>
-              <li><b>Reading and Writing</b>, 2 modules of 32 minutes</li>
-              <li><b>Math</b>, 2 modules of 35 minutes, Desmos built in</li>
-              <li><b>Adaptive Module 2</b> adjusts to how you did on Module 1</li>
-              <li><b>Instant feedback</b>, no penalties, end early anytime</li>
-            </ul>
-            <button class="btn btn-primary" id="start-test-btn">Start practice test</button>
+          <div class="test-options">
+            <button type="button" class="test-option selected" data-option="full">
+              <span class="to-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+              <span class="to-body">
+                <b>Full digital SAT</b>
+                <span class="to-meta">4 modules · 108 questions · ~2h15m</span>
+                <span class="to-note">Both sections, adaptive, scored 400–1600.</span>
+              </span>
+            </button>
+            <button type="button" class="test-option" data-option="rw">
+              <span class="to-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+              <span class="to-body">
+                <b>Reading &amp; Writing</b>
+                <span class="to-meta">2 modules · 54 questions · ~64 min</span>
+                <span class="to-note">Reading and grammar, scored 200–800.</span>
+              </span>
+            </button>
+            <button type="button" class="test-option" data-option="math">
+              <span class="to-ico"><svg class="icon lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>
+              <span class="to-body">
+                <b>Math</b>
+                <span class="to-meta">2 modules · 54 questions · ~70 min</span>
+                <span class="to-note">Desmos calculator built in, scored 200–800.</span>
+              </span>
+            </button>
           </div>
+          <button class="btn btn-primary" id="start-test-btn" style="margin-top:18px;width:100%">Start test</button>
         </div>
 
         <div id="test-active" class="hidden">
@@ -781,18 +792,18 @@
                 <div class="test-score-ring-center">
                   <div class="grade-badge big" id="test-grade-badge"><span class="grade-letter" id="test-grade-letter">A</span><span class="grade-meta"><b id="test-grade-label">Excellent</b></span></div>
                   <div class="scaled-score" id="scaled-score">-</div>
-                  <p class="score-range muted">SAT scale: 400-1600</p>
+                  <p class="score-range muted" id="test-score-range">SAT scale: 400-1600</p>
                 </div>
               </div>
             </div>
             <p class="score-band" id="score-band">-</p>
             <div class="score-section-grid">
-              <div class="score-sec">
+              <div class="score-sec" id="score-sec-rw">
                 <span class="score-sec-label">Reading and Writing</span>
                 <span class="score-sec-value" id="score-rw">-</span>
                 <span class="score-sec-correct" id="score-rw-correct">-</span>
               </div>
-              <div class="score-sec">
+              <div class="score-sec" id="score-sec-math">
                 <span class="score-sec-label">Math</span>
                 <span class="score-sec-value" id="score-math">-</span>
                 <span class="score-sec-correct" id="score-math-correct">-</span>
@@ -966,8 +977,7 @@
         <div class="card premium-hero">
           <span class="premium-hero-icon"><span class="ms lg fill">workspace_premium</span></span>
           <div>
-            <h2>Everything SAT Arena has to offer</h2>
-            <p class="muted">The free plan is a daily taste. Premium removes every limit so you can train the way test day demands, no caps, no ads.</p>
+            <h2>No caps. No ads. Unlimited practice.</h2>
           </div>
         </div>
 
@@ -1012,16 +1022,6 @@
               <li><span class="plan-check">✓</span> Supports independent development</li>
             </ul>
           </button>
-        </div>
-
-        <div class="card premium-features-card">
-          <h3 class="card-title">What premium unlocks</h3>
-          <div class="premium-features">
-            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><div><b>Unlimited practice</b><p class="muted small">As many adaptive questions as you want, no 10-per-day cap. Difficulty keeps tuning to your live skill rating.</p></div></div>
-            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><div><b>Full-length practice tests</b><p class="muted small">Real digital-SAT structure, 4 modules, 108 questions, adaptive module 2, Desmos calculator built in, scaled 400-1600 score.</p></div></div>
-            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><div><b>Unlimited AI tutor</b><p class="muted small">Chat with SAT Sage as much as you need, strategies, grammar rules, step-by-step math, no 3-message daily cap.</p></div></div>
-            <div class="p-feature"><span class="p-feature-ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20"/><path d="M12 21L8 9l4-6 4 6-4 12"/></svg></span><div><b>Topic analytics & ad-free</b><p class="muted small">Deep weak-spot reports per topic, and zero ads anywhere, the whole app stays calm and focused.</p></div></div>
-          </div>
         </div>
 
         <div class="card premium-cta-card">

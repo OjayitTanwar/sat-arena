@@ -11,6 +11,7 @@ const state = {
   game: null,          // active quick-practice game
   test: null,          // active full practice test
   ptest: null,         // active focused practice test
+  testOption: 'full',  // full-test intro selection: 'full' | 'rw' | 'math'
   tutorHistory: [],
   topicStats: null,    // per-topic proficiency ratings (from /api/topics)
   store: null,         // gem balance + inventory snapshot (from /api/store / dashboard)
@@ -1043,20 +1044,17 @@ async function renderDashboardData(data) {
   $('#dash-streak').classList.toggle('hot', u.streak >= 3);
   $('#dash-xp').innerHTML = `<b>${u.xp.toLocaleString()}</b> XP`;
   $('#dash-level').textContent = u.levelPct + '%';
-  $('#dash-level-label').textContent = `Level ${u.level}`;
+  $('#dash-level-label').textContent = 'to level ' + (u.level + 1);
 
   const ring = $('#level-ring');
   ring.style.setProperty('--p', u.levelPct);
   const lname = LEVEL_NAMES[Math.min(u.level - 1, LEVEL_NAMES.length - 1)];
   $('#dash-level-title').textContent = `Level ${u.level} · ${lname}`;
-  $('#dash-xp-progress').textContent = `${u.xp} XP earned`;
   $('#dash-xp-bar').style.width = u.levelPct + '%';
-  $('#dash-next-level').textContent = `${100 - u.levelPct}% to level ${u.level + 1}`;
 
   $('#stat-answered').textContent = data.stats.totalAnswered;
   $('#stat-accuracy').textContent = data.stats.accuracy + '%';
   $('#stat-best').textContent = u.best_streak;
-  $('#stat-math').textContent = data.stats.mathAnswered;
 
   // countdown + daily goal
   const card = $('#countdown-card');
@@ -1064,7 +1062,7 @@ async function renderDashboardData(data) {
     card.classList.remove('hidden');
     $('#dash-countdown').innerHTML = `<b>${data.stats.daysLeft}</b>`;
     $('#countdown-big').textContent = data.stats.daysLeft + (data.stats.daysLeft === 1 ? ' day' : ' days');
-    $('#countdown-title').textContent = 'Until test day, keep the streak alive';
+    $('#countdown-title').textContent = 'Your SAT is coming up';
     $('#countdown-sub').textContent = `Target date: ${u.target_date} · daily goal ${data.stats.dailyGoal} questions`;
   } else if (data.stats.daysLeft !== null && data.stats.daysLeft < 0) {
     card.classList.remove('hidden');
@@ -1119,7 +1117,7 @@ async function renderDashboardData(data) {
   } else {
     weakEl.innerHTML = `<div class="empty-state">
       <span class="empty-ico">${ICONS.flag}</span>
-      <p class="muted small">Answer 2+ questions in a topic to see your weak spots here.</p>
+      <p class="muted small">Answer 2+ questions in a topic to unlock.</p>
       <button class="btn btn-ghost empty-cta">Start a quick round</button>
     </div>`;
     const cta = weakEl.querySelector('.empty-cta');
@@ -1128,7 +1126,7 @@ async function renderDashboardData(data) {
 
   // adaptive difficulty summary line in the proficiency card
   const adaptEl = $('#dash-adaptive');
-  if (adaptEl) adaptEl.textContent = `Skill rating ${data.stats.adaptiveRating}/100, questions adjust as you answer.`;
+  if (adaptEl) adaptEl.textContent = `Skill rating ${data.stats.adaptiveRating}/100`;
 
   // per-topic proficiency ratings
   const profEl = $('#proficiency-list');
@@ -1141,7 +1139,7 @@ async function renderDashboardData(data) {
   } else {
     profEl.innerHTML = `<div class="empty-state">
       <span class="empty-ico">${ICONS.zap}</span>
-      <p class="muted small">Answer questions to build your per-topic proficiency ratings.</p>
+      <p class="muted small">Answer questions to build proficiency.</p>
       <button class="btn btn-ghost empty-cta">Start practicing</button>
     </div>`;
     const cta2 = profEl.querySelector('.empty-cta');
@@ -1667,9 +1665,9 @@ function renderLessonPath() {
     return 'locked';
   });
   const count = nodes.length;
-  const startY = 108;
-  const step = 132;                       // vertical spacing between node centers
-  const H = startY + Math.max(1, count - 1) * step + 104; // headroom for start/finish markers
+  const startY = 116;
+  const step = 140;                       // vertical spacing between node centers
+  const H = startY + Math.max(1, count - 1) * step + 124; // headroom for start/finish markers
   const amp = Math.min(20, Math.max(13, (wrap.clientWidth || 720) * 0.045)); // responsive sway (%)
   const pts = nodes.map((n, i) => ({
     x: +(50 + amp * Math.sin(0.8 + i * 0.85)).toFixed(2),
@@ -1691,17 +1689,19 @@ function renderLessonPath() {
     <svg class="path-line" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">
       <path d="${d}"/>
     </svg>
-    <div class="path-start" style="left:${start.x}%;top:${start.y - 52}px">${ICONS.flag}</div>
-    <div class="path-finish" style="left:${fin.x}%;top:${fin.y + 52}px">${ICONS.trophy}</div>
+    <div class="path-start" style="left:${start.x}%;top:${start.y - 60}px">${ICONS.flag}</div>
+    <div class="path-finish" style="left:${fin.x}%;top:${fin.y + 60}px">${ICONS.trophy}</div>
     ${nodes.map((n, i) => {
       const st = states[i];
       const icon = st === 'completed' ? ICONS.check : st === 'current' ? ICONS.zap : ICONS.lock;
       const sub = n.pct !== null ? `${n.pct}% proficiency` : 'Not started';
-      const cta = st === 'current' ? '<span class="path-state"><span class="path-continue">Continue</span></span>' : `<span class="path-state">${icon}</span>`;
+      // current node gets its own row so the Continue pill never collides with the proficiency text
+      const row = st === 'current'
+        ? `<span class="path-sub">${sub}</span><span class="path-continue">Continue</span>`
+        : `<span class="path-sub">${sub}</span><span class="path-state">${icon}</span>`;
       return `<button class="path-node ${st}" data-group="${n.g.label}" style="left:${pts[i].x}%;top:${pts[i].y}px">
         <span class="path-ico">${n.g.label === 'Reading & Writing' ? ICONS.book : ICONS.calculator}</span>
-        <span class="path-body"><b>${n.g.label}</b><span class="path-sub">${sub}</span></span>
-        ${cta}
+        <span class="path-body"><b>${n.g.label}</b><span class="path-row">${row}</span></span>
       </button>`;
     }).join('')}
   `;
@@ -1740,10 +1740,15 @@ async function startFullTest() {
     const { token, modules } = await api('/api/practice-test/start', { method: 'POST' });
     const byKey = {};
     for (const m of modules) byKey[m.key] = m;
+    const option = state.testOption || 'full';
+    // 'full' runs both sections (rw1 → rw2 → math1 → math2); 'rw' and 'math'
+    // run just that section's two modules. Module 2s get appended as you go.
+    const flow = option === 'rw' ? ['rw1'] : option === 'math' ? ['math1'] : ['rw1', 'math1'];
     state.test = {
       token,
       modules: byKey,          // module key → module
-      flow: modules.map((m) => m.key), // ['rw1', 'math1'], module 2s get appended later
+      flow,
+      totalModules: option === 'full' ? 4 : 2,
       moduleIdx: 0,
       qIdx: 0,
       answers: {},
@@ -1796,8 +1801,8 @@ function renderTestQuestion() {
   const q = module.questions[t.qIdx];
   const isMath = q.section === 'math';
 
-  $('#test-module-label').textContent = `Module ${t.moduleIdx + 1} of 4`;
-  $('#test-module-progress').style.width = ((t.moduleIdx + (t.qIdx / module.questions.length)) / 4) * 100 + '%';
+  $('#test-module-label').textContent = `Module ${t.moduleIdx + 1} of ${t.totalModules || 4}`;
+  $('#test-module-progress').style.width = ((t.moduleIdx + (t.qIdx / module.questions.length)) / (t.totalModules || 4)) * 100 + '%';
   $('#test-progress-text').textContent = `Question ${t.qIdx + 1} of ${module.questions.length}${t.levels[module.key] ? ' · ' + t.levels[module.key].toUpperCase() + ' module' : ''}`;
   $('#test-q-section').textContent = isMath ? 'Math' : 'Reading & Writing';
   $('#test-q-topic').textContent = topicLabel(q.topic);
@@ -1966,6 +1971,11 @@ function showTestResults(result) {
   $('#score-rw-correct').textContent = `${result.rw.correct} / ${result.rw.total} correct`;
   $('#score-math').textContent = result.scaled.math;
   $('#score-math-correct').textContent = `${result.math.correct} / ${result.math.total} correct`;
+  // hide the section a one-section test didn't touch
+  $('#score-sec-rw').classList.toggle('hidden', !result.rw.total);
+  $('#score-sec-math').classList.toggle('hidden', !result.math.total);
+  const rangeEl = $('#test-score-range');
+  if (rangeEl) rangeEl.textContent = result.rw.total && result.math.total ? 'SAT scale: 400–1600' : 'Section scale: 200–800';
 
   $('#test-review').innerHTML = result.detail
     .map((d, i) => `<div class="review-item">
@@ -2022,16 +2032,22 @@ function renderPracticeTests() {
   const grid = $('#ptest-grid');
   if (!grid || !ptestCache) return;
   if (!ptestCache.length) { grid.innerHTML = '<p class="muted small">No practice tests available.</p>'; return; }
-  grid.innerHTML = ptestCache.map((t, i) => `
+  grid.innerHTML = ptestCache.map((t, i) => {
+    const section = t.section === 'math' ? 'Math' : t.section === 'reading' ? 'Reading' : 'Mixed';
+    const best = t.best !== null ? `<span class="ptest-best" title="Your best score">Best ${t.best}%</span>` : '';
+    return `
     <button class="ptest-card" data-test="${t.id}" style="animation-delay:${i * 40}ms">
       <span class="ptest-ico">${PTEST_ICONS[t.icon] || ICONS.zap}</span>
       <span class="ptest-body">
         <b>${t.title}</b>
-        <span class="ptest-tagline">${t.tagline}</span>
-        <span class="ptest-meta muted small">${t.count} questions · ${t.section === 'math' ? 'Math' : t.section === 'reading' ? 'Reading' : 'Mixed'}${t.best !== null ? ` · Best ${t.best}%` : ''}</span>
+        <span class="ptest-meta">${t.count} questions · ${section}</span>
       </span>
-      <span class="ptest-cta">Start</span>
-    </button>`).join('');
+      ${best}
+      <span class="ptest-cta" aria-hidden="true">
+        <svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+      </span>
+    </button>`;
+  }).join('');
   $$('.ptest-card').forEach((card) => card.addEventListener('click', () => startPracticeTest(card.dataset.test)));
 }
 
@@ -3044,6 +3060,12 @@ async function init() {
 
   // full test
   $('#start-test-btn').addEventListener('click', () => { Sound.click(); startFullTest(); });
+  // full-test intro: pick which test to run
+  $$('.test-option').forEach((b) => b.addEventListener('click', () => {
+    Sound.click();
+    state.testOption = b.dataset.option;
+    $$('.test-option').forEach((x) => x.classList.toggle('selected', x === b));
+  }));
   $('#test-finish-btn').addEventListener('click', () => { if (confirm('End the test early and score what you have?')) finishFullTest(); });
   $('#test-break-btn').addEventListener('click', () => {
     $('#test-break').classList.add('hidden');
